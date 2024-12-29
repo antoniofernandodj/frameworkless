@@ -39,8 +39,6 @@ def validate_params(params_validator: Type[ParamsValidator]) -> Callable:
             body: Union[List[Any], Dict[str, Any], Coroutine]
         ) -> Dict[str, Any]:
 
-            print({'params': params})
-
             params = params_validator.validate(params)
             return await func(self, params, body)
 
