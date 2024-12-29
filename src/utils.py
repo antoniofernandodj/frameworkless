@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+from typing import Any, Dict, Type, get_type_hints, get_args, Annotated
 import json
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
@@ -26,9 +28,10 @@ def make_response(status: int, body):
     }
 
 
-def validate_params(required_params: Union[Dict[str, Any], ParamsValidator]) -> Callable:
+def validate_params(params_validator: Type[ParamsValidator]) -> Callable:
 
     def decorator(func: Callable) -> Callable:
+
         @wraps(func)
         async def wrapper(
             self,
@@ -36,25 +39,19 @@ def validate_params(required_params: Union[Dict[str, Any], ParamsValidator]) -> 
             body: Union[List[Any], Dict[str, Any], Coroutine]
         ) -> Dict[str, Any]:
 
-            nonlocal required_params
-            if isinstance(required_params, ParamsValidator):
-                required_params = required_params.to_dict()
+            print({'params': params})
 
-            for param, param_data in required_params.items():
-                param_type = param_data['type']
-                error_message = param_data['msg']
-                if param not in params:
-                    raise UnprocessableEntityError(error_message)
-                else:
-                    params[param] = param_type(params[param])
+            params = params_validator.validate(params)
             return await func(self, params, body)
+
         return wrapper
     return decorator
 
 
-def validate_body(required_body_keys: Union[Dict[str, Any], ParamsValidator]) -> Callable:
+def validate_body(params_validator: Type[ParamsValidator]) -> Callable:
 
     def decorator(func: Callable) -> Callable:
+
         @wraps(func)
         async def wrapper(
             self,
@@ -65,19 +62,12 @@ def validate_body(required_body_keys: Union[Dict[str, Any], ParamsValidator]) ->
             if not isinstance(body, (dict, list)):
                 body = await parse_body(body)
 
-            nonlocal required_body_keys
-            if isinstance(required_body_keys, ParamsValidator):
-                required_body_keys = required_body_keys.to_dict()
+            if not isinstance(body, dict):
+                raise UnprocessableEntityError('Must be a dict')
 
-            for param, param_data in required_body_keys.items():
-                param_type = param_data['type']
-                error_message = param_data['msg']
-                if param not in body:
-                    raise UnprocessableEntityError(error_message)
-                else:
-                    params[param] = param_type(params[param])
-
+            body = params_validator.validate(body)
             return await func(self, params, body)
+
         return wrapper
     return decorator
 
@@ -99,23 +89,32 @@ def parse_query_string(query_string: str):
 
 
 class ParamsValidator:
-    def __init__(self) -> None:
-        self.validators: List[Dict[str, Any]] = []
+    @classmethod
+    def get_field_metadata(cls) -> Dict[str, Dict[str, Any]]:
 
-    def add(self, param_name: str, param_type: Type, msg: str):
-        self.validators.append({
-            "param_name": param_name,
-            "type": param_type,
-            "msg": msg
-        })
+        metadata = {}
+        for field_name, annotated_type in cls.__annotations__.items():
+            param_type, error_message = get_args(annotated_type)
 
-        return self
-
-    def to_dict(self) -> Dict[str, Dict[str, Any]]:
-        validation_dict = {}
-        for validator in self.validators:
-            validation_dict[validator["param_name"]] = {
-                "type": validator["type"],
-                "msg": validator["msg"]
+            metadata[field_name] = {
+                "type": param_type,
+                "msg": error_message
             }
-        return validation_dict
+        
+        return metadata
+
+    @classmethod
+    def validate(cls, params: Dict[str, Any]) -> Dict[str, Any]:
+        params_after = deepcopy(params)
+        validators = cls.get_field_metadata()
+
+        for field_name, type_data in validators.items():
+            param_type = type_data['type']
+            error_msg = type_data['msg']
+            try:
+                params_after[field_name] = param_type(params[field_name])
+            except Exception:
+                del params_after
+                raise UnprocessableEntityError(error_msg)
+
+        return params_after
