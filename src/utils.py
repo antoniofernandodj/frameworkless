@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from copy import deepcopy
-from typing import Any, Dict, Literal, Tuple, Type, get_type_hints, get_args, Annotated
+from typing import Any, Dict, Literal, Optional, Tuple, Type, get_type_hints, get_args, Annotated
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
 from urllib.parse import parse_qs
@@ -141,3 +141,18 @@ def assure_tuples_of_str(data: List[Union[Tuple[str, str], List[bytes]]]) -> Lis
                 pass
     return result
 
+
+
+def print_app(app):
+    apps = []
+    current_app: Optional[Any] = app
+    while 1:
+        try:
+            if current_app:
+                apps.append(current_app)
+                current_app = current_app.app
+        except:
+            break
+
+    for app in apps:
+        print(app)
