@@ -5,11 +5,10 @@ import json
 import logging
 import time
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from granian._granian import RSGIHTTPProtocol
 from src import ASGI_RSGI_APP
 from src.exceptions.http import HTTPException, InternalServerError
-from src.utils import get_protocol_args, headers_to_response, is_rsgi_app
-
+from src.utils import assure_tuples_of_str, get_protocol_args, headers_to_response, is_rsgi_app
 
 
 
@@ -26,7 +25,9 @@ class RequestLoggingMiddleware(ASGI_RSGI_APP):
         start_time = time.time()
 
         if is_rsgi_app(scope):
+            assert protocol_or_receive
             protocol = protocol_or_receive
+            assert isinstance(protocol, RSGIHTTPProtocol)
             await self.app.__rsgi__(scope, protocol)
         else:
             receive = protocol_or_receive
@@ -61,7 +62,9 @@ class AuthenticationMiddleware(ASGI_RSGI_APP):
                 # scope.current_user = 'John Doe'
 
         if is_rsgi_app(scope):
+            assert protocol_or_receive
             protocol = protocol_or_receive
+            assert isinstance(protocol, RSGIHTTPProtocol)
             await self.app.__rsgi__(scope, protocol)
         else:
             receive = protocol_or_receive
@@ -76,11 +79,14 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
         self.app = app
 
     async def exec(self, *args):
+        protocol: RSGIHTTPProtocol
         scope, protocol_or_receive, send = get_protocol_args(args)
 
         try:
             if is_rsgi_app(scope):
+                assert protocol_or_receive
                 protocol = protocol_or_receive
+                assert isinstance(protocol, RSGIHTTPProtocol)
                 await self.app.__rsgi__(scope, protocol)
             else:
                 receive = protocol_or_receive
@@ -93,13 +99,14 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                 scope['status'] = response["status"]
 
             if is_rsgi_app(scope):
-                if not protocol:
-                    raise RuntimeError
+                assert protocol_or_receive
+                protocol = protocol_or_receive
+                assert isinstance(protocol, RSGIHTTPProtocol)
                 response_headers = {'content-type': 'application/json'}
                 headers_response = headers_to_response(response_headers, mode='str')
                 protocol.response_str(
                     status=response['status'],
-                    headers=headers_response,
+                    headers=assure_tuples_of_str(headers_response),
                     body=json.dumps(response['body'])
                 )
             else:
@@ -120,16 +127,16 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
             response = http_exception.json()
 
             if is_rsgi_app(scope):
-                if not protocol:
-                    raise RuntimeError
-
+                assert protocol_or_receive
+                protocol = protocol_or_receive
+                assert isinstance(protocol, RSGIHTTPProtocol)
                 response_headers = {'content-type': 'application/json'}
                 response_headers.update(response.get('headers', {}))
                 headers_response = headers_to_response(response_headers, mode='str')
 
                 protocol.response_str(
                     status=response['status'],
-                    headers=headers_response,
+                    headers=assure_tuples_of_str(headers_response),
                     body=json.dumps(response['body'])
                 )
             else:
@@ -165,6 +172,9 @@ class CORSMiddleware(ASGI_RSGI_APP):
             pass
 
         if is_rsgi_app(scope):
+            assert protocol_or_receive
+            protocol = protocol_or_receive
+            assert isinstance(protocol, RSGIHTTPProtocol)
             protocol = protocol_or_receive
             await self.app.__rsgi__(scope, protocol)
         else:

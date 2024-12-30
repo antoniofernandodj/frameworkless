@@ -5,10 +5,10 @@ import time
 import json
 import traceback
 
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Coroutine, Dict, List, Type, Union
 from src.routes import UserRouter, TodosRouter
 from src.exceptions.http import NotFoundError
-from src.utils import parse_query_string, is_rsgi_app, headers_to_response
+from src.utils import assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
 
 try:
     from granian.rsgi import Scope
@@ -35,7 +35,14 @@ class ASGI_RSGI_APP(ABC):
             except:
                 return {}
 
-    async def send_response(self, scope, send, status, body: str, headers: dict):
+    async def send_response(
+        self,
+        scope: Any,
+        send: Any,
+        status: int,
+        body: str,
+        headers: dict
+    ):
 
         if is_rsgi_app(scope):
 
@@ -45,7 +52,7 @@ class ASGI_RSGI_APP(ABC):
 
             send.response_str(
                 status=status,
-                headers=headers_response,
+                headers=assure_tuples_of_str(headers_response),
                 body=body
             )
 
@@ -72,7 +79,7 @@ class ASGI_RSGI_APP(ABC):
         self = middleware(self)
         return self
     
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Any, receive: Coroutine, send: Any):
         if scope['type'] == 'lifespan':
             return
 

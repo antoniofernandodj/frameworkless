@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import suppress
 from copy import deepcopy
 from typing import Any, Dict, Literal, Tuple, Type, get_type_hints, get_args, Annotated
-import json
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
 from urllib.parse import parse_qs
@@ -126,3 +125,19 @@ def headers_to_response(
             result.append((key, item))
 
     return result
+
+
+def assure_tuples_of_str(data: List[Union[Tuple[str, str], List[bytes]]]) -> List[Tuple[str, str]]:
+    result = []
+    for item in data:
+        if isinstance(item, tuple) and len(item) == 2 and all(isinstance(sub, str) for sub in item):
+            result.append(item)
+        elif isinstance(item, list) and all(isinstance(sub, bytes) for sub in item):
+            try:
+                converted = tuple(sub.decode("utf-8") for sub in item)
+                if len(converted) == 2:
+                    result.append(converted)
+            except (UnicodeDecodeError, ValueError):
+                pass
+    return result
+
