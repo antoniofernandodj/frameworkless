@@ -1,24 +1,13 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from copy import deepcopy
-from typing import Any, Dict, Type, get_type_hints, get_args, Annotated
+from typing import Any, Dict, Literal, Tuple, Type, get_type_hints, get_args, Annotated
 import json
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
 from urllib.parse import parse_qs
 from src.exceptions.http import UnprocessableEntityError
-
-
-async def parse_body(receive) -> Union[List[Any], Dict[str, Any]]:
-    body = b""
-    while True:
-        message = await receive()
-        if message["type"] == "http.request":
-            body += message.get("body", b"")
-            if not message.get("more_body", False):
-                break
-
-    return json.loads(body.decode("utf-8") or "{}")
 
 
 def make_response(status: int, body):
@@ -57,9 +46,6 @@ def validate_body(params_validator: Type[ParamsValidator]) -> Callable:
             body: Union[List[Any], Dict[str, Any], Coroutine]
         ) -> Dict[str, Any]:
 
-            if not isinstance(body, (dict, list)):
-                body = await parse_body(body)
-
             if not isinstance(body, dict):
                 raise UnprocessableEntityError('Must be a dict')
 
@@ -70,20 +56,12 @@ def validate_body(params_validator: Type[ParamsValidator]) -> Callable:
     return decorator
 
 
-def parse_request_body(func: Callable) -> Callable:
-    @wraps(func)
-    async def wrapper(self, params: Dict[str, Any], receive, *args, **kwargs):
-        body = await parse_body(receive)
-        return await func(self, params, body, *args, **kwargs)
-    return wrapper
-
 def parse_query_string(query_string: str):
     try:
         parsed_query = {key: value[0] for key, value in parse_qs(query_string).items()}
     except Exception:
         parsed_query = {}
     return parsed_query
-
 
 
 class ParamsValidator:
@@ -116,3 +94,35 @@ class ParamsValidator:
                 raise UnprocessableEntityError(error_msg)
 
         return params_after
+
+
+def get_protocol_args(args):
+    scope = args[0]
+    send = None
+    protocol_or_receive = None
+    with suppress(Exception):
+        protocol_or_receive = args[1]
+
+    with suppress(Exception):
+        send = args[2]
+
+    return scope, protocol_or_receive, send
+
+
+def is_rsgi_app(scope):
+    return 'RSGI' in str(scope).upper() or 'GRANIAN' in str(scope).upper()
+
+
+def headers_to_response(
+    headers_dict: Dict[str, Any],
+    mode: Literal['bytes', 'str'] = 'str'
+) -> List[Union[Tuple[str, str], List[bytes]]]:
+
+    result: List[Union[Tuple[str, str], List[bytes]]] = []
+    for key, item in headers_dict.items():
+        if mode == 'bytes':
+            result.append([key.encode('utf-8'), item.encode('utf-8')])
+        else:
+            result.append((key, item))
+
+    return result

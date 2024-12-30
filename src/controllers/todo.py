@@ -51,17 +51,19 @@ class TodosController:
         return make_response(200, body)
 
     @validate_body(CreateTodoBodyValidator)
-    async def create_todo_handler(self, _, body):
-        todo: Todo = self.todos_repository.create_todo(body["task"], body["user"])
+    async def create_todo_handler(self, _, request_body):
+        todo: Todo = self.todos_repository.create_todo(
+            request_body["task"], request_body["user"]
+        )
 
         body = todo.dict()
         return make_response(201, body)
 
     @validate_body(UpdateTodoBodyValidator)
     @validate_params(TodoIdValidator)
-    async def update_todo_handler(self, params: Dict[str, Any], body):
+    async def update_todo_handler(self, params: Dict[str, Any], request_body):
         todo_id: int = params["id"]
-        task: str = body["task"]
+        task: str = request_body["task"]
 
         todo = self.todos_repository.update_todo(todo_id, task)
         if not todo:
