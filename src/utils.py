@@ -142,7 +142,6 @@ def assure_tuples_of_str(data: List[Union[Tuple[str, str], List[bytes]]]) -> Lis
     return result
 
 
-
 def print_app(app):
     apps = []
     current_app: Optional[Any] = app
@@ -155,4 +154,99 @@ def print_app(app):
             break
 
     for app in apps:
-        print(app)
+        print(f'app: {app}')
+
+
+def get(pattern: str):
+    def decorator(func: Callable):
+
+        func.CONTROLLER_DATA = {
+            'method': 'GET', 'pattern': pattern
+        }
+
+        @wraps(func)
+        async def inner(self, *args, **kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except:
+                return func(self, *args, **kwargs)
+        
+        return inner
+    
+    return decorator
+
+def post(pattern: str):
+    def decorator(func: Callable):
+
+        func.CONTROLLER_DATA = {
+            'method': 'POST', 'pattern': pattern
+        }
+
+        @wraps(func)
+        async def inner(self, *args, **kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except:
+                return func(self, *args, **kwargs)
+        
+        return inner
+    
+    return decorator
+
+def patch(pattern: str):
+    def decorator(func: Callable):
+
+        func.CONTROLLER_DATA = {
+            'method': 'PATCH', 'pattern': pattern
+        }
+
+        @wraps(func)
+        async def inner(self, *args, **kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except:
+                return func(self, *args, **kwargs)
+        
+        return inner
+    
+    return decorator
+
+
+def put(pattern: str):
+    def decorator(func: Callable):
+
+        func.CONTROLLER_DATA = {
+            'method': 'PUT', 'pattern': pattern
+        }
+
+        @wraps(func)
+        async def inner(self, *args, **kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except:
+                return func(self, *args, **kwargs)
+        
+        return inner
+    
+    return decorator
+
+
+def delete(pattern: str):
+
+
+    def decorator(func: Callable):
+
+        func.CONTROLLER_DATA = {
+            'method': 'DELETE', 'pattern': pattern
+        }
+
+        @wraps(func)
+        async def inner(self, *args, **kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except:
+                return func(self, *args, **kwargs)
+        
+        return inner
+    
+    return decorator

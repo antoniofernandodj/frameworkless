@@ -109,8 +109,16 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                 assert send
                 await self.app(scope, receive, send)
 
-        except HTTPException as error:
-            response = error.json()
+        except (HTTPException, LookupError) as error:
+            if isinstance(error, LookupError):
+                response = {
+                    "status": 404,
+                    "body": {
+                        "detail": str(error)
+                    }
+                }
+            else:
+                response = error.json()
 
             if not is_rsgi_app(scope):
                 scope['status'] = response["status"]
@@ -151,7 +159,7 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                 response_headers.update(response.get('headers', {}))
                 headers_response = headers_to_response(response_headers, mode='str')
 
-                protocol.response_str(
+                await protocol.response_str(
                     status=response['status'],
                     headers=assure_tuples_of_str(headers_response),
                     body=json.dumps(response['body'])

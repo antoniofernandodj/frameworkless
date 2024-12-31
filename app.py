@@ -1,4 +1,3 @@
-from typing import Any, Optional
 from src import App
 from src.utils import print_app
 from src.middlewares import (

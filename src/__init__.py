@@ -1,20 +1,27 @@
 from __future__ import annotations
+
 from abc import ABC
 from contextlib import suppress
+from dataclasses import dataclass
 import logging
 import json
-import traceback
+from src import types as t
+from src.infra.database import SessionLocal
 
-from typing import Any, Awaitable, Callable, Dict, List, Type, Union, Optional
-from xmlrpc.client import boolean
-from src.routes import UserRouter, TodosRouter
+from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, Union, Optional
+from src.models import Request
+from src.routers import (
+    ConsultaRouter,
+    DoencaRouter,
+    ExameRouter,
+    MedicamentoRouter,
+    PacienteRouter,
+    TarefaRouter,
+    TesteRouter
+)
+
 from src.exceptions.http import NotFoundError
 from src.utils import assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
-
-
-Scope = Dict[str, Any]
-Receive = Callable[[], Awaitable[Dict[str, Any]]]
-Send = Callable[[Dict[str, Any]], Awaitable[None]]
 
 
 with suppress(Exception):
@@ -27,7 +34,7 @@ logging.basicConfig(level=logging.INFO)
 
 class ASGI_RSGI_APP(ABC):
 
-    last: boolean
+    last: bool
     app: ASGI_RSGI_APP
     parent: Optional[ASGI_RSGI_APP]
 
@@ -92,7 +99,7 @@ class ASGI_RSGI_APP(ABC):
                 response_headers, mode='bytes'
             )
 
-            print(self)
+            print(f'Self: {self}')
 
             try:
                 params = {
@@ -100,7 +107,7 @@ class ASGI_RSGI_APP(ABC):
                     "status": status,
                     "headers": headers_response,
                 }
-                print(params)
+                print(f"params: {params}")
                 await send(params)
             except Exception:
                 pass
@@ -115,7 +122,7 @@ class ASGI_RSGI_APP(ABC):
                 'more_body': more_body
             }
             await send(params)
-            print(params)
+            print(f"params: {params}")
             return
     
     def add_middleware(self, middleware: Type[ASGI_RSGI_APP], params=None) -> ASGI_RSGI_APP:
@@ -131,7 +138,7 @@ class ASGI_RSGI_APP(ABC):
 
         return self
     
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+    async def __call__(self, scope: t.Scope, receive: t.Receive, send: t.Send):
         if scope['type'] == 'lifespan':
             return
 
@@ -150,17 +157,30 @@ class App(ASGI_RSGI_APP):
 
         self.last = True
         self.parent = None
+        session = SessionLocal()
+
         self.routers = (
-            UserRouter(), TodosRouter()
+            ConsultaRouter(session),
+            DoencaRouter(session),
+            ExameRouter(session),
+            MedicamentoRouter(session),
+            TarefaRouter(session),
+            PacienteRouter(session),
+            TesteRouter(),
         )
 
     async def __rsgi__(self, scope: 'GranianScope', protocol: 'RSGIHTTPProtocol'):
+
+
+        async def get_body():
+            return await self.rsgi_parse_body(protocol)
 
         response = await self.dispatch_request(
             scope.query_string,
             scope.path,
             scope.method,
-            await self.rsgi_parse_body(protocol)
+            get_body,
+            dict(scope.headers.items())
         )
 
         await self.send_response(
@@ -171,17 +191,25 @@ class App(ASGI_RSGI_APP):
             response.get('headers', {})
         )
 
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+    async def __call__(self, scope: t.Scope, receive: t.Receive, send: t.Send):
 
         if scope['type'] == 'lifespan':
             return
+        
+        async def get_body():
+            return await self.asgi_parse_body(receive)
+        
+        headers = {
+            key.decode('utf-8'): item.decode('utf-8')
+            for key, item in dict(scope['headers']).items()
+        }
 
         response = await self.dispatch_request(
             scope['query_string'].decode('utf-8'),
             scope['path'],
             scope['method'],
-            await self.asgi_parse_body(receive)
+            get_body,
+            headers
         )
         scope['status'] = response["status"]
 
@@ -198,46 +226,69 @@ class App(ASGI_RSGI_APP):
         query_string: str,
         path: str,
         method: str,
-        body: Any
+        get_body_callback: Callable[[], Coroutine],
+        headers: Dict[str, str],
     ):
         query = parse_query_string(query_string)
-        endpoint_handler, params = None, None
+        endpoint_handler, path_args = None, None
         for router in self.routers:
-            endpoint_handler, params = router.match_route(method, path)
+            endpoint_handler, path_args = router.match_route(method, path)
             if endpoint_handler is not None:
                 break
-        if endpoint_handler is None or params is None:
+
+        if endpoint_handler is None or path_args is None:
             raise NotFoundError("Route not Found")
 
-        params.update(query)
-        return await endpoint_handler(params, body)
+        request = Request(path_args, query, get_body_callback, headers)
+        try:
+            response = await endpoint_handler(request)
+        except:
+            response = endpoint_handler(request)
+
+        return response
 
     async def asgi_parse_body(
         self,
-        receive: Receive
-    ) -> Union[List[Any], Dict[str, Any], None]:
+        receive: t.Receive
+    ) -> Union[List[Any], Dict[str, Any], str, None]:
 
+        body_bytes = b""
         try:
-            body = b""
             while True:
                 message = await receive()
                 if message["type"] == "http.request":
-                    body += message.get("body", b"")
+                    body_bytes += message.get("body", b"")
                     if not message.get("more_body", False):
                         break
-
-            return json.loads(body.decode("utf-8") or "{}")
         except Exception:
             return None
+
+        try:
+            body = json.loads(body_bytes.decode('utf-8'))
+        except json.JSONDecodeError:
+            try:
+                body = body_bytes.decode('utf-8')
+            except:
+                body = str(body_bytes)
+        
+        return body
 
     async def rsgi_parse_body(
         self,
         protocol: 'RSGIHTTPProtocol'
-    ) -> Union[List[Any], Dict[str, Any], None]:
+    ) -> Union[List[Any], Dict[str, Any], str, None]:
+        
         try:
             body_bytes = await protocol()
+        except:
+            return None
+
+        try:
             body = json.loads(body_bytes.decode('utf-8'))
         except json.JSONDecodeError:
-            body = None
+            try:
+                body = body_bytes.decode('utf-8')
+            except:
+                body = str(body_bytes)
         
         return body

@@ -1,98 +1,79 @@
-from typing import Any, List, Optional, Dict
-from src.domain.models import User, Todo
+from typing import Any, List, Optional, Dict, Type, TypeVar, Generic, Union
 from sqlalchemy.orm import Session
 
 
-class UserRepository:
+T = TypeVar('T')
+
+
+class GenericRepository(Generic[T]):
+
+    model: T
+
     def __init__(self, session: Session) -> None:
         self.db = session
 
-    def get_by_id(self, user_id: int) -> Optional[User]:
-        return self.db.query(User).filter_by(id=user_id).first()
+    def get_by_id(self, user_id: int) -> Optional[T]:
+        return self.db.query(self.model).filter_by(id=user_id).first() # type: ignore
 
-    def get_all_users(self) -> List[User]:
-        return self.db.query(User).all()
+    def get_all(self) -> List[T]:
+        return self.db.query(self.model).all() # type: ignore
 
-    def create_user(self, name: str) -> User:
-        db_user = User(name=name)
-        self.db.add(db_user)
+    def create(self, item: T) -> T:
+        self.db.add(item)
         self.db.commit()
-        self.db.refresh(db_user)
-        return db_user
+        self.db.refresh(item)
+        return item
 
-    def update_user(self, user_id: int, name: str) -> Optional[User]:
-        user = self.get_by_id(user_id)
-        if not user:
+    def update(self, id: int, data: dict[str, Any]) -> Optional[T]:
+        item = self.get_by_id(id)
+        if not item:
             return None
-        user.name = name
+        
+        for key, value in data.items():
+            setattr(item, key, value)
         self.db.commit()
-        self.db.refresh(user)
-        return user
+        self.db.refresh(item)
+        return item
 
-    def delete_user(self, user_id: int) -> bool:
-        user = self.get_by_id(user_id)
-        if not user:
+    def delete(self, id: int) -> bool:
+        item = self.get_by_id(id)
+        if not item:
             return False
-        self.db.delete(user)
+        self.db.delete(item)
         self.db.commit()
         return True
+    
+
+from src.domain.models import (
+    Consulta, Doenca, Exame, Medicamento, Paciente, Tarefa
+)
 
 
+# Repository para Paciente
+class PacienteRepository(GenericRepository[Paciente]):
+    model = Paciente # type: ignore
 
-class TodosRepository:
-    def __init__(self, session: Session) -> None:
-        self.db = session
 
-    def get_todos(self, filters: Dict[str, Any]) -> List[Todo]:
-        id = filters.get('id')
-        user_id = filters.get('user_id')
-        task = filters.get('task')
-        query = self.db.query(Todo)
+# Repository para Consulta
+class ConsultaRepository(GenericRepository[Consulta]):
+    model = Consulta # type: ignore
 
-        if id:
-            query = query.filter_by(id=id)
-        if user_id:
-            query = query.filter_by(user_id=user_id)
-        if task:
-            query = query.filter_by(task=task)
 
-        return query.all()
+# Repository para Doença
+class DoencaRepository(GenericRepository[Doenca]):
+    model = Doenca # type: ignore
 
-    def get_todos_by_user(self, user_id: int) -> List[Todo]:
-        return self.db.query(Todo).filter_by(user_id=user_id).all()
 
-    def get_by_id(self, todo_id: int) -> Optional[Todo]:
-        return self.db.query(Todo).filter_by(id=todo_id).first()
+# Repository para Exame
+class ExameRepository(GenericRepository[Exame]):
+    model = Exame # type: ignore
 
-    def create_todo(self, task: str, user_id: int) -> Todo:
-        db_todo = Todo(task=task, user_id=user_id)
-        self.db.add(db_todo)
-        self.db.commit()
-        self.db.refresh(db_todo)
-        return db_todo
 
-    def update_todo(self, todo_id: int, task: str) -> Optional[Todo]:
-        todo = self.get_by_id(todo_id)
-        if not todo:
-            return None
-        todo.task = task
-        self.db.commit()
-        self.db.refresh(todo)
-        return todo
+# Repository para Medicamento
+class MedicamentoRepository(GenericRepository[Medicamento]):
+    model = Medicamento # type: ignore
 
-    def delete_todo(self, todo_id: int) -> bool:
-        todo = self.get_by_id(todo_id)
-        if not todo:
-            return False
-        self.db.delete(todo)
-        self.db.commit()
-        return True
 
-    def delete_todos_by_user(self, user_id: int) -> int:
-        todos = self.get_todos_by_user(user_id)
-        if not todos:
-            return 0
-        for todo in todos:
-            self.db.delete(todo)
-        self.db.commit()
-        return len(todos)
+# Repository para Tarefa
+class TarefaRepository(GenericRepository[Tarefa]):
+    model = Tarefa # type: ignore

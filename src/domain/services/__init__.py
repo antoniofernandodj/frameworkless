@@ -1,0 +1,1 @@
+from .consulta import ConsultaService
