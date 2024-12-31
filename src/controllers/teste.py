@@ -13,9 +13,6 @@ from src.utils import (
 
 class TesteController:
 
-    def __init__(self) -> None:
-        pass
-
     @get(r"^/teste/$")
     async def teste_endpoint_1(self, request: Request):
         print('request: ', request)

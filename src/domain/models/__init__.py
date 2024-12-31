@@ -1,3 +1,4 @@
+from ._base import DomainModel
 from .consulta import Consulta
 from .doenca import Doenca
 from .exame import Exame
@@ -7,6 +8,7 @@ from .tarefa import Tarefa
 
 
 __all__ = [
+    'DomainModel',
     'Consulta',
     'Doenca',
     'Exame',

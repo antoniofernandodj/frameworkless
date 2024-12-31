@@ -6,9 +6,8 @@ from dataclasses import dataclass
 import logging
 import json
 from src import types as t
-from src.infra.database import SessionLocal
 
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, Union, Optional
+from typing import Any, Callable, Coroutine, Dict, List, Type, Union, Optional
 from src.models import Request
 from src.routers import (
     ConsultaRouter,
@@ -155,9 +154,14 @@ class ASGI_RSGI_APP(ABC):
 class App(ASGI_RSGI_APP):
     def __init__(self):
 
+        from src.infra.database.sql import SessionLocal
+        # from src.infra.database.mongo import client
+
         self.last = True
         self.parent = None
+
         session = SessionLocal()
+        # session = client
 
         self.routers = (
             ConsultaRouter(session),

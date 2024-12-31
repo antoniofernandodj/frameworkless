@@ -1,5 +1,8 @@
 from typing import Any, List, Optional, Dict, Type, TypeVar, Generic, Union
 from sqlalchemy.orm import Session
+from src.domain.models import (
+    Consulta, Doenca, Exame, Medicamento, Paciente, Tarefa
+)
 
 
 T = TypeVar('T')
@@ -7,16 +10,16 @@ T = TypeVar('T')
 
 class GenericRepository(Generic[T]):
 
-    model: T
+    model: Type[T]
 
     def __init__(self, session: Session) -> None:
         self.db = session
 
     def get_by_id(self, user_id: int) -> Optional[T]:
-        return self.db.query(self.model).filter_by(id=user_id).first() # type: ignore
+        return self.db.query(self.model).filter_by(id=user_id).first()
 
     def get_all(self) -> List[T]:
-        return self.db.query(self.model).all() # type: ignore
+        return self.db.query(self.model).all()
 
     def create(self, item: T) -> T:
         self.db.add(item)
@@ -42,38 +45,33 @@ class GenericRepository(Generic[T]):
         self.db.delete(item)
         self.db.commit()
         return True
-    
-
-from src.domain.models import (
-    Consulta, Doenca, Exame, Medicamento, Paciente, Tarefa
-)
 
 
-# Repository para Paciente
+
 class PacienteRepository(GenericRepository[Paciente]):
-    model = Paciente # type: ignore
+    model = Paciente
 
 
-# Repository para Consulta
+
 class ConsultaRepository(GenericRepository[Consulta]):
-    model = Consulta # type: ignore
+    model = Consulta
 
 
-# Repository para Doença
+
 class DoencaRepository(GenericRepository[Doenca]):
-    model = Doenca # type: ignore
+    model = Doenca
 
 
-# Repository para Exame
+
 class ExameRepository(GenericRepository[Exame]):
-    model = Exame # type: ignore
+    model = Exame
 
 
-# Repository para Medicamento
+
 class MedicamentoRepository(GenericRepository[Medicamento]):
-    model = Medicamento # type: ignore
+    model = Medicamento
 
 
-# Repository para Tarefa
+
 class TarefaRepository(GenericRepository[Tarefa]):
-    model = Tarefa # type: ignore
+    model = Tarefa
