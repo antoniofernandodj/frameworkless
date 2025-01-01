@@ -38,36 +38,36 @@ class MedicamentoController:
         if medicamento is None:
             raise LookupError('medicamento not found')
 
-        return make_response(200, medicamento.to_dict())
+        return make_response(medicamento)
 
     @post(r"^/medicamentos/$")
     @validate_body(MedicamentoFieldsValidator)
     async def create_medicamento(self, request: Request):
         body = await request.get_body()
         medicamento: Medicamento = self.medicamento_repository.create(body['name'])
-        return make_response(201, medicamento.to_dict())
+        return make_response(medicamento, 201)
 
     @put(r"^/medicamentos/(?P<id>\d+)$")
     @validate_body(MedicamentoFieldsValidator)
     @validate_params(IdValidator)
-    async def update_medicamento(self, request: Request):
-        medicamento_id: int = request.path_args['id']
+    async def update_medicamento(self, request: Request, id: str):
+        medicamento_id = int(id)
         body = await request.get_body()
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
             raise LookupError("medicamento not found")
 
-        return make_response(200, medicamento.to_dict())
+        return make_response(medicamento)
 
     @delete(r"^/medicamentos/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_medicamento(self, request: Request):
-        medicamento_id: int = request.path_args['id']
+    async def delete_medicamento(self, request: Request, id: str):
+        medicamento_id = int(id)
         success: bool = self.medicamento_repository.delete(medicamento_id)
         if not success:
             raise LookupError("medicamento not found")
 
-        return make_response(200, {})
+        return make_response({})
 
 
 """

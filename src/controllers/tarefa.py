@@ -35,40 +35,36 @@ class TarefaController:
         if tarefa is None:
             raise NotFoundError('tarefa not found')
 
-        body = tarefa.to_dict()
-        return make_response(200, body)
+        return make_response(tarefa)
 
     @post(r"^/tarefas/$")
     @validate_body(TarefaFieldsValidator)
     async def create_tarefa(self, request: Request):
         body = await request.get_body()
         tarefa: Tarefa = self.tarefa_repository.create(body['description'])
-        body = tarefa.to_dict()
-        return make_response(201, body)
+        return make_response(tarefa, 201)
 
     @put(r"^/tarefas/(?P<id>\d+)$")
     @validate_body(TarefaFieldsValidator)
     @validate_params(IdValidator)
-    async def update_tarefa(self, request: Request):
-        tarefa_id: int = request.path_args['id']
+    async def update_tarefa(self, request: Request, id: str):
+        tarefa_id = int(id)
         body = await request.get_body()
         tarefa: Optional[Tarefa] = self.tarefa_repository.update(tarefa_id, body)
         if not tarefa:
             raise NotFoundError("tarefa not found")
 
-        body = tarefa.to_dict()
-        return make_response(200, body)
+        return make_response(tarefa)
 
     @delete(r"^/tarefas/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_tarefa(self, request: Request):
-        paciente_id: int = request.path_args['id']
+    async def delete_tarefa(self, request: Request, id: str):
+        paciente_id = int(id)
         success: bool = self.tarefa_repository.delete(paciente_id)
         if not success:
             raise NotFoundError("Tarea not found")
 
-        body = {}
-        return make_response(200, body)
+        return make_response({})
 
 
 """

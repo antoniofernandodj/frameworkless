@@ -35,46 +35,46 @@ class ExameController:
         if exame is None:
             raise LookupError('exame not found')
 
-        return make_response(200, exame.to_dict())
+        return make_response(exame)
 
     @post(r"^/exames/$")
     @validate_body(ExameFieldsValidator)
     async def create_exame(self, request: Request):
         body = await request.get_body()
         exame: Exame = self.exame_repository.create(body['type'])
-        return make_response(201, exame.to_dict())
+        return make_response(exame, 201)
 
     @patch(r"^/exames/(?P<id>\d+)/marcar$")
     @validate_params(IdValidator)
-    async def marcar_exame(self, request: Request):
-        exame_id: int = request.path_args['id']
+    async def marcar_exame(self, request: Request, id: str):
+        exame_id = int(id)
         exame = self.exame_repository.update(exame_id, {'marcado': True})
         if exame is None:
             raise LookupError('exame not found')
 
-        return make_response(200, exame.to_dict())
+        return make_response(exame)
 
     @put(r"^/exames/(?P<id>\d+)$")
     @validate_body(ExameFieldsValidator)
     @validate_params(IdValidator)
-    async def update_exame(self, request: Request):
-        exame_id: int = request.path_args['id']
+    async def update_exame(self, request: Request, id: str):
+        exame_id = int(id)
         body = await request.get_body()
         exame: Optional[Exame] = self.exame_repository.update(exame_id, body)
         if not exame:
             raise LookupError("exame not found")
 
-        return make_response(200, exame.to_dict())
+        return make_response(exame)
 
     @delete(r"^/exames/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_exame(self, request: Request):
-        exame_id: int = request.path_args['id']
+    async def delete_exame(self, request: Request, id: str):
+        exame_id = int(id)
         success: bool = self.exame_repository.delete(exame_id)
         if not success:
             raise LookupError("exame not found")
 
-        return make_response(200, {})
+        return make_response({})
     
 
 """

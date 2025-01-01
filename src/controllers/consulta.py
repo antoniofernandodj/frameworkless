@@ -38,46 +38,46 @@ class ConsultaController:
         if consulta is None:
             raise LookupError('consulta not found')
 
-        return make_response(200, consulta.to_dict())
+        return make_response(consulta)
 
     @post(r"^/consultas/$")    
     @validate_body(ConsultaFieldsValidator)
     async def create_consulta(self, request: Request):
         body = await request.get_body()
         consulta: Consulta = self.consulta_repository.create(body['description'])
-        return make_response(201, consulta.to_dict())
+        return make_response(consulta, 201)
     
     @patch(r"^/consultas/(?P<id>\d+)/marcar$")
     @validate_params(IdValidator)
-    async def marcar_consulta(self, request: Request):
-        consulta_id: int = request.path_args['id']
+    async def marcar_consulta(self, request: Request, id: int):
+        consulta_id = int(id)
         consulta = self.consulta_repository.update(consulta_id, {'marcado': True})
         if consulta is None:
             raise LookupError('consulta not found')
 
-        return make_response(200, consulta.to_dict())
+        return make_response(consulta)
 
     @put(r"^/consultas/(?P<id>\d+)$")
     @validate_body(ConsultaFieldsValidator)
     @validate_params(IdValidator)
-    async def update_consulta(self, request: Request):
-        consulta_id: int = request.path_args['id']
+    async def update_consulta(self, request: Request, id: int):
+        consulta_id = int(id)
         body = await request.get_body()
         consulta: Optional[Consulta] = self.consulta_repository.update(consulta_id, body)
         if not consulta:
             raise LookupError("consulta not found")
 
-        return make_response(200, consulta.to_dict())
+        return make_response(consulta)
 
     @delete(r"^/consultas/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_consulta(self, request: Request):
-        consulta_id: int = request.path_args['id']
+    async def delete_consulta(self, request: Request, id: int):
+        consulta_id = int(id)
         success: bool = self.consulta_repository.delete(consulta_id)
         if not success:
             raise LookupError("consulta not found")
 
-        return make_response(200, {})
+        return make_response({})
 
 
 """

@@ -1,3 +1,4 @@
+from datetime import date
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Consulta
@@ -15,8 +16,15 @@ class TesteController:
 
     @get(r"^/teste/$")
     async def teste_endpoint_1(self, request: Request):
-        print('request: ', request)
-        return make_response(200, {})
+        # print('request: ', request)
+        return make_response(Consulta(1, date(1,2,3), True, 'medico'))
+
+    @get(r"^/teste/(?P<id>\d+)$")
+    async def teste_endpoint_1_2(self, request: Request, id: int):
+
+        print({'id': id})
+
+        return make_response({'arg': id})
 
 
     @post(r"^/teste/$")
@@ -31,20 +39,17 @@ class TesteController:
     
 
     @patch(r"^/teste/(?P<id>\d+)/sub$")
-    async def teste_endpoint_3(self, request: Request):
-        print(f'request: {request}')
+    async def teste_endpoint_3(self, request: Request, id: str):
         return make_response(200, {})
 
 
     @put(r"^/teste/(?P<id>\d+)$")
-    async def teste_endpoint_4(self, request: Request):
-        print(f'request: {request}')
+    async def teste_endpoint_4(self, request: Request, id: str):
         return make_response(200, {})
 
 
     @delete(r"^/teste/(?P<id>\d+)$")
-    async def teste_endpoint_5(self, request: Request):
-        print(f'request: {request}')
+    async def teste_endpoint_5(self, request: Request, id: str):
         return make_response(200, {})
 
 

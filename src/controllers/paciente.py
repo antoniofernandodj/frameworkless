@@ -1,3 +1,4 @@
+from src.exceptions.http import NotFoundError
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Paciente
@@ -34,38 +35,38 @@ class PacienteController:
         paciente_id: int = request.query['id']
         paciente: Optional[Paciente] = self.paciente_repository.get_by_id(paciente_id)
         if paciente is None:
-            raise LookupError('paciente not found')
+            raise NotFoundError('paciente not found')
 
-        return make_response(200, paciente.to_dict())
+        return make_response(paciente)
 
     @post(r"^/pacientes/$")
     @validate_body(PacienteFieldsValidator)
     async def create_paciente(self, request: Request):
         body = await request.get_body()
         paciente: Paciente = self.paciente_repository.create(body['name'])
-        return make_response(201, paciente.to_dict())
+        return make_response(paciente, 201)
 
     @put(r"^/pacientes/(?P<id>\d+)$")
     @validate_body(PacienteFieldsValidator)
     @validate_params(IdValidator)
-    async def update_paciente(self, request: Request):
-        paciente_id: int = request.path_args['id']
+    async def update_paciente(self, request: Request, id: str):
+        paciente_id = int(id)
         body = await request.get_body()
         paciente: Optional[Paciente] = self.paciente_repository.update(paciente_id, body['name'])
         if paciente is None:
-            raise LookupError("paciente not found")
+            raise NotFoundError("paciente not found")
 
-        return make_response(200, paciente.to_dict())
+        return make_response(paciente)
 
     @delete(r"^/pacientes/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_paciente(self, request: Request):
-        paciente_id: int = request.path_args['id']
+    async def delete_paciente(self, request: Request, id: str):
+        paciente_id = int(id)
         success: bool = self.paciente_repository.delete(paciente_id)
         if not success:
-            raise LookupError("paciente not found")
+            raise NotFoundError("paciente not found")
 
-        return make_response(200, {})
+        return make_response({})
 
 
 """

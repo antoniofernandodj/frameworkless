@@ -7,10 +7,4 @@ class MedicamentoRouter(BaseRouter):
     def __init__(self, session):
         repository = MedicamentoRepository(session)
         controller = MedicamentoController(repository)
-
-        self.register_endpoints((
-            controller.get_medicamento,
-            controller.create_medicamento,
-            controller.update_medicamento,
-            controller.delete_medicamento
-        ))
+        self.register_controller(controller)

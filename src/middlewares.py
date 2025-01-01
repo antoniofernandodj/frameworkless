@@ -5,12 +5,15 @@ import json
 import logging
 import time
 
+import traceback
 from typing import Any, Dict, List, Tuple
 from granian._granian import RSGIHTTPProtocol
 from src import ASGI_RSGI_APP
 from src.exceptions.http import HTTPException, InternalServerError
-from src.utils import assure_tuples_of_str, get_protocol_args, headers_to_response, is_rsgi_app
+from src.utils import assure_tuples_of_bytes, assure_tuples_of_str, get_protocol_args, headers_to_response, is_rsgi_app
 
+
+LOG_STACK_TRACE = True
 
 
 class RequestLoggingMiddleware(ASGI_RSGI_APP):
@@ -96,7 +99,6 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
     async def exec(self, *args):
         protocol: RSGIHTTPProtocol
         scope, protocol_or_receive, send = get_protocol_args(args)
-
         try:
             if is_rsgi_app(scope):
                 assert protocol_or_receive
@@ -109,7 +111,8 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                 assert send
                 await self.app(scope, receive, send)
 
-        except (HTTPException, LookupError) as error:
+        except (HTTPException, LookupError) as error:        
+
             if isinstance(error, LookupError):
                 response = {
                     "status": 404,
@@ -126,8 +129,7 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
             if is_rsgi_app(scope):
                 assert protocol_or_receive
                 protocol = protocol_or_receive
-                # assert isinstance(protocol, RSGIHTTPProtocol)
-                response_headers = {'content-type': 'application/json'}
+                response_headers = {}
                 headers_response = headers_to_response(response_headers, mode='str')
                 protocol.response_str(
                     status=response['status'],
@@ -145,34 +147,26 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                 )
 
         except Exception as error:
-            # e = error
-            # stacktrace = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-            # print(stacktrace)
+
+            if LOG_STACK_TRACE:
+                e = error
+                stacktrace = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+                print(stacktrace)
+
             http_exception = InternalServerError(f"Internal Server Error: {error}")
             response = http_exception.json()
 
-            if is_rsgi_app(scope):
-                assert protocol_or_receive
-                protocol = protocol_or_receive
-                # assert isinstance(protocol, RSGIHTTPProtocol)
-                response_headers = {'content-type': 'application/json'}
-                response_headers.update(response.get('headers', {}))
-                headers_response = headers_to_response(response_headers, mode='str')
+            response_headers = {'content-type': 'application/json'}
+            response_headers.update(response.get('headers', {}))
+            body = response.get("body", {})
 
-                await protocol.response_str(
-                    status=response['status'],
-                    headers=assure_tuples_of_str(headers_response),
-                    body=json.dumps(response['body'])
-                )
-            else:
-                body = response.get("body", {})
-                await self.send_response(
-                    scope,
-                    send,
-                    response["status"],
-                    json.dumps(body),
-                    response.get('headers', {})
-                )
+            await self.send_response(
+                scope,
+                send or protocol_or_receive,
+                response["status"],
+                json.dumps(body),
+                headers=response_headers
+            )
 
 
 class CORSMiddleware2(ASGI_RSGI_APP):
@@ -269,12 +263,23 @@ class CORSMiddleware2(ASGI_RSGI_APP):
 
         capture = RSGICapture(scope, protocol_or_receive, send)
         if is_rsgi_app(scope):
-            # protocol = protocol_or_receive
-            # assert isinstance(protocol, RSGIHTTPProtocol)
             await self.app.__rsgi__(scope, capture)
         else:
             receive = protocol_or_receive
             await self.app(scope, receive, capture.send)
 
         body = response_body.encode('utf-8')
-        return {"status": status, "body": body.decode("utf-8"), "headers": self.headers}
+
+        result_headers = {}
+        for header in headers:
+            key, value = header
+            if isinstance(key, bytes) and isinstance(value, bytes):
+                result_headers[key.decode('utf-8')] = value.decode('utf-8')
+            else:
+                result_headers[key] = value
+
+        return {
+            "status": status,
+            "body": body.decode("utf-8"),
+            "headers": result_headers
+        }

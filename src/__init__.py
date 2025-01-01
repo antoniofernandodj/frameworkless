@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC
+from asyncio import iscoroutinefunction
 from contextlib import suppress
-from dataclasses import dataclass
+import inspect
 import logging
 import json
 from src import types as t
@@ -20,7 +21,7 @@ from src.routers import (
 )
 
 from src.exceptions.http import NotFoundError
-from src.utils import assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
+from src.utils import Response, assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
 
 
 with suppress(Exception):
@@ -79,20 +80,17 @@ class ASGI_RSGI_APP(ABC):
     ):
 
         if is_rsgi_app(scope):
-
-            response_headers = {'content-type': 'application/json'}
+            response_headers = {}
             response_headers.update(headers)
             headers_response = headers_to_response(response_headers, mode='str')
-
-            if send:
-                send.response_str(
-                    status=status,
-                    headers=assure_tuples_of_str(headers_response),
-                    body=body
-                )
+            send.response_str(
+                status=status,
+                headers=assure_tuples_of_str(headers_response),
+                body=body
+            )
 
         else:
-            response_headers = {'content-type': 'application/json'}
+            response_headers = {}
             response_headers.update(headers)
             headers_response = headers_to_response(
                 response_headers, mode='bytes'
@@ -175,7 +173,6 @@ class App(ASGI_RSGI_APP):
 
     async def __rsgi__(self, scope: 'GranianScope', protocol: 'RSGIHTTPProtocol'):
 
-
         async def get_body():
             return await self.rsgi_parse_body(protocol)
 
@@ -190,9 +187,9 @@ class App(ASGI_RSGI_APP):
         await self.send_response(
             scope,
             protocol,
-            response["status"],
-            json.dumps(response.get('body', {})),
-            response.get('headers', {})
+            response.status,
+            json.dumps(response.body),
+            response.headers
         )
 
     async def __call__(self, scope: t.Scope, receive: t.Receive, send: t.Send):
@@ -215,14 +212,14 @@ class App(ASGI_RSGI_APP):
             get_body,
             headers
         )
-        scope['status'] = response["status"]
+        scope['status'] = response.status
 
         await self.send_response(
             scope,
             send,
             scope['status'],
-            json.dumps(response.get("body", {})),
-            response.get('headers', {})
+            json.dumps(response.body),
+            response.headers
         )
 
     async def dispatch_request(
@@ -232,7 +229,7 @@ class App(ASGI_RSGI_APP):
         method: str,
         get_body_callback: Callable[[], Coroutine],
         headers: Dict[str, str],
-    ):
+    ) -> Response:
         query = parse_query_string(query_string)
         endpoint_handler, path_args = None, None
         for router in self.routers:
@@ -243,11 +240,19 @@ class App(ASGI_RSGI_APP):
         if endpoint_handler is None or path_args is None:
             raise NotFoundError("Route not Found")
 
-        request = Request(path_args, query, get_body_callback, headers)
-        try:
-            response = await endpoint_handler(request)
-        except:
-            response = endpoint_handler(request)
+        response: Response
+        request = Request(query, get_body_callback, headers)
+
+        for param_name, param_type in endpoint_handler.__annotations__.items():
+            for arg_name, arg_value in path_args.items():
+                if param_name == arg_name:
+                    path_args[arg_name] = param_type(arg_value)
+
+        if iscoroutinefunction(endpoint_handler):
+            response = await endpoint_handler(request, **path_args)
+        else:
+            response = endpoint_handler(request, **path_args)
+            print(response)
 
         return response
 

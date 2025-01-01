@@ -6,14 +6,44 @@ from typing import Any, Dict, Literal, Optional, Tuple, Type, get_type_hints, ge
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
 from urllib.parse import parse_qs
+from src.domain.models._base import DomainModel
 from src.exceptions.http import UnprocessableEntityError
+from src.models import Response
 
 
-def make_response(status: int, body):
-    return {
-        "status": status,
-        "body": body
-    }
+
+def make_response(*args) -> Response:
+
+    body = None
+    status = 200
+    headers = {'content-type': 'application/json'}
+
+    for i, arg in enumerate(args):
+
+        if isinstance(arg, DomainModel):
+            body = {
+                key: value for key, value
+                in arg.to_dict().items()
+                if 'instance_state' not in key
+            }
+
+        if isinstance(arg, int):
+            status = arg
+
+        if isinstance(arg, dict):
+            if i == 0:
+                body = arg
+            else:
+                headers.update(arg)
+
+        if isinstance(arg, str):
+            body = arg
+
+    return Response(
+        status,
+        None if status == 204 else body,
+        headers
+    )
 
 
 def validate_params(params_validator: Type[ParamsValidator]) -> Callable:
@@ -142,6 +172,21 @@ def assure_tuples_of_str(data: List[Union[Tuple[str, str], List[bytes]]]) -> Lis
     return result
 
 
+def assure_tuples_of_bytes(data: List[Union[Tuple[bytes, bytes], List[str]]]) -> List[Tuple[bytes, bytes]]:
+    result = []
+    for item in data:
+        if isinstance(item, tuple) and len(item) == 2 and all(isinstance(sub, bytes) for sub in item):
+            result.append(item)
+        elif isinstance(item, list) and all(isinstance(sub, str) for sub in item):
+            try:
+                converted = tuple(sub.encode("utf-8") for sub in item)
+                if len(converted) == 2:
+                    result.append(converted)
+            except (UnicodeEncodeError, ValueError):
+                pass
+    return result
+
+
 def print_app(app):
     apps = []
     current_app: Optional[Any] = app
@@ -155,6 +200,9 @@ def print_app(app):
 
     for app in apps:
         print(f'app: {app}')
+
+    import os
+    os.system('clear')
 
 
 def get(pattern: str):

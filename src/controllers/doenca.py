@@ -34,36 +34,36 @@ class DoencaController:
         if doenca is None:
             raise LookupError('doenca not found')
 
-        return make_response(200, doenca.to_dict())
+        return make_response(doenca)
 
     @post(r"^/doencas/$")
     @validate_body(DoencaFieldsValidator)
     async def create_doenca(self, request: Request):
         body = await request.get_body()
         doenca: Doenca = self.doenca_repository.create(body['name'])
-        return make_response(201, doenca.to_dict())
+        return make_response(doenca, 201)
 
     @put(r"^/doencas/(?P<id>\d+)$")
     @validate_body(DoencaFieldsValidator)
     @validate_params(IdValidator)
-    async def update_doenca(self, request: Request):
-        doenca_id: int = request.path_args['id']
+    async def update_doenca(self, request: Request, id: str):
+        doenca_id = int(id)
         body = await request.get_body()
         doenca: Optional[Doenca] = self.doenca_repository.update(doenca_id, body)
         if not doenca:
             raise LookupError("doenca not found")
 
-        return make_response(200, doenca.to_dict())
+        return make_response(doenca)
 
     @delete(r"^/doencas/(?P<id>\d+)$")
     @validate_params(IdValidator)
-    async def delete_doenca(self, request: Request):
-        doenca_id: int = request.path_args['id']
+    async def delete_doenca(self, request: Request, id: str):
+        doenca_id = int(id)
         success: bool = self.doenca_repository.delete(doenca_id)
         if not success:
             raise LookupError("doenca not found")
 
-        return make_response(200, {})
+        return make_response({})
 
 
 """

@@ -1,13 +1,33 @@
-from typing import Any
+from datetime import date, datetime
+from typing import Any, Union
+
+
+def date_converter(value: Union[date, datetime]):
+    return value.isoformat()
 
 
 class DomainModel:
+
+    converters = {
+        date: date_converter,
+        datetime: date_converter
+    }
+
     def __init__(self, **kwargs: Any):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     def to_dict(self) -> dict:
-        return {key: getattr(self, key) for key in vars(self)}
+        result = {}
+        for key in vars(self):
+            value = getattr(self, key)
+
+            converter = self.converters.get(type(value))
+            if converter:
+                result[key] = converter(value)
+            else:
+                result[key] = value
+        return result
 
     def update_from_dict(self, data: dict) -> None:
         for key, value in data.items():
