@@ -56,7 +56,6 @@ class RSGIHeaders:
         return default
 
 
-
 @dataclass
 class Scope:
     proto: str
@@ -73,55 +72,25 @@ class Scope:
     authority: Optional[str] = None
 
 
-
-def make_rsgi_request(
-    headers: Dict[str, str],
-    body: Any,
-    query_string: str,
-    path: str,
-    method: str
-):
-
-    scope = Scope(
-        proto='',
-        http_version='',
-        rsgi_version='',
-        server='',
-        scheme='',
-        client='',
-        method=method,
-        path=path,
-        query_string=query_string,
-        headers=RSGIHeaders(headers)
-    )
-
-    proto = RSGIHTTPProtocol(body)
-
-    return scope, proto
-
-
-
-
-
 class TestClient:
     def __init__(self, app) -> None:
         self.app = app
 
     async def get(self, path, body=None, query_string='', headers=None):
-        return await self.mock_request(path, 'GET', body, query_string, headers)
+        return await self.__mock_request(path, 'GET', body, query_string, headers)
 
     async def post(self, path, body=None, query_string='', headers=None):
-        return await self.mock_request(path, 'POST', body, query_string, headers)
+        return await self.__mock_request(path, 'POST', body, query_string, headers)
 
     async def put(self, path, body=None, query_string='', headers=None):
-        return await self.mock_request(path, 'PUT', body, query_string, headers)
+        return await self.__mock_request(path, 'PUT', body, query_string, headers)
 
     async def delete(self, path, body=None, query_string='', headers=None):
-        return await self.mock_request(path, 'DELETE', body, query_string, headers)
+        return await self.__mock_request(path, 'DELETE', body, query_string, headers)
 
-    async def mock_request(self, path, method, body, query_string, headers):
+    async def __mock_request(self, path, method, body, query_string, headers):
         headers = headers or {'content-type': 'application/json'}
-        scope, proto = make_rsgi_request(
+        scope, proto = self.__make_rsgi_request(
             headers=headers,
             body=body,
             query_string=query_string,
@@ -131,8 +100,31 @@ class TestClient:
         await self.app.__rsgi__(scope, proto)  # type: ignore
         return proto.get_response()
 
+    def __make_rsgi_request(
+        self,
+        headers: Dict[str, str],
+        body: Any,
+        query_string: str,
+        path: str,
+        method: str
+    ):
 
+        scope = Scope(
+            proto='',
+            http_version='',
+            rsgi_version='',
+            server='',
+            scheme='',
+            client='',
+            method=method,
+            path=path,
+            query_string=query_string,
+            headers=RSGIHeaders(headers)
+        )
 
+        proto = RSGIHTTPProtocol(body)
+
+        return scope, proto
 
 
 def make_controller_request(query: dict, body: Any, headers = {}):
