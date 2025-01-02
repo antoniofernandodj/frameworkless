@@ -292,11 +292,6 @@ class App(ASGI_RSGI_APP):
 
         if iscoroutinefunction(endpoint_handler):
             response = await endpoint_handler(request, **path_args)
-            print({
-                'request': request,
-                'response': response,
-                'endpoint_handler': endpoint_handler
-            })
         else:
             response = endpoint_handler(request, **path_args)
 

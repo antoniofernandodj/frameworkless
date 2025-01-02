@@ -1,8 +1,6 @@
-
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
-
 from src.models import Response
 
 
@@ -102,20 +100,39 @@ def make_rsgi_request(
     return scope, proto
 
 
-from typing import Any
 
 
-async def mock_request(app, path, method="GET", body=None, query_string='', headers=None):
-    headers = headers or {'content-type': 'application/json'}
-    scope, proto = make_rsgi_request(
-        headers=headers,
-        body=body,
-        query_string=query_string,
-        path=path,
-        method=method
-    )
-    await app.__rsgi__(scope, proto)  # type: ignore
-    return proto.get_response()
+
+class TestClient:
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def get(self, path, body=None, query_string='', headers=None):
+        return await self.mock_request(path, 'GET', body, query_string, headers)
+
+    async def post(self, path, body=None, query_string='', headers=None):
+        return await self.mock_request(path, 'POST', body, query_string, headers)
+
+    async def put(self, path, body=None, query_string='', headers=None):
+        return await self.mock_request(path, 'PUT', body, query_string, headers)
+
+    async def delete(self, path, body=None, query_string='', headers=None):
+        return await self.mock_request(path, 'DELETE', body, query_string, headers)
+
+    async def mock_request(self, path, method, body, query_string, headers):
+        headers = headers or {'content-type': 'application/json'}
+        scope, proto = make_rsgi_request(
+            headers=headers,
+            body=body,
+            query_string=query_string,
+            path=path,
+            method=method
+        )
+        await self.app.__rsgi__(scope, proto)  # type: ignore
+        return proto.get_response()
+
+
+
 
 
 def make_controller_request(query: dict, body: Any, headers = {}):

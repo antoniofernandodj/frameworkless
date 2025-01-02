@@ -39,10 +39,7 @@ class TarefaController:
     @post("/tarefas/")
     @validate_body(TarefaFieldsValidator)
     async def create_tarefa(self, request: Request):
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-        
+        body = await request.get_body()
         tarefa: Tarefa = self.tarefa_repository.create(body['description'])
         return make_response(tarefa, 201)
 
@@ -51,10 +48,7 @@ class TarefaController:
     @validate_params(IdValidator)
     async def update_tarefa(self, request: Request, id: str):
         tarefa_id = int(id)
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-        
+        body = await request.get_body()        
         tarefa: Optional[Tarefa] = self.tarefa_repository.update(tarefa_id, body)
         if not tarefa:
             raise NotFoundError("tarefa not found")

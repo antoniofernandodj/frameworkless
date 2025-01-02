@@ -42,7 +42,7 @@ class ConsultaController:
     @post("/consultas/")    
     @validate_body(ConsultaFieldsValidator)
     async def create_consulta(self, request: Request):
-        body = await request.get_body(None)
+        body = await request.get_body()
         consulta = Consulta(**body)  # type: ignore
         consulta: Consulta = self.consulta_repository.create(consulta)
         return make_response(consulta, 201)
@@ -61,10 +61,7 @@ class ConsultaController:
     @validate_params(IdValidator)
     async def update_consulta(self, request: Request, id: int):
         consulta_id = int(id)
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-
+        body = await request.get_body()
         consulta: Optional[Consulta] = self.consulta_repository.update(consulta_id, body)
         if not consulta:
             raise NotFoundError("Consulta not found")

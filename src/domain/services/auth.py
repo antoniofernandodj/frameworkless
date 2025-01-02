@@ -1,8 +1,12 @@
-from datetime import date
-from src.exceptions.http import ConflictError, NotFoundError
-from src.jwt import generate_jwt
-from typing import Any, Dict, Optional
+from asyncio import iscoroutinefunction
+from datetime import date, datetime
+from functools import wraps
+from src.exceptions.http import ConflictError, NotFoundError, UnauthorizedError
+from src.infra.database.sql import get_session_local
+from src.jwt import JWTService
+from typing import Any, Callable, Dict, Optional
 from src.domain.models import Paciente
+from src.models import Request
 from src.repository import PacienteRepository
 from src.security import HashService
 
@@ -17,7 +21,7 @@ class AuthService:
         if paciente is None or not HashService.check_hash(password, paciente.senha):
             raise NotFoundError('Credenciais inválidas!')
 
-        token = generate_jwt({'user_id': paciente.id})
+        token = JWTService.generate({'user_id': paciente.id})
         response = paciente.to_response()
         response['token'] = token
         return response
@@ -49,7 +53,69 @@ class AuthService:
         )
 
         result = self.repo.create(paciente)
-        token = generate_jwt({'user_id': result.id})
+        token = JWTService.generate({'user_id': result.id})
         response = result.to_response()
         response['token'] = token
         return response
+
+    def get_user_by_token(self, token: str) -> Paciente:
+        try:
+            payload = JWTService.decode(token=token)
+        except ValueError as e:
+            raise UnauthorizedError(f'Erro ao decodificar o token: {e}')
+
+        user_id = payload.get('user_id')
+        expire_time_timestamp = payload.get('exp')
+
+        if user_id is None or expire_time_timestamp is None:
+            raise UnauthorizedError(f'Erro ao decodificar o token')
+
+        if expire_time_timestamp is None or datetime.now().timestamp() > expire_time_timestamp:
+            raise UnauthorizedError('O token expirou. Faça login novamente.')
+
+        paciente = self.repo.get_by_id(user_id=user_id)
+        if paciente is None:
+            raise NotFoundError('Credenciais inválidas!')
+        
+        return paciente
+
+
+def auth_required(func: Callable):
+
+    @wraps(func)
+    async def inner(self, request: Request):
+
+        auth = (
+            request.headers.get('Authorization') or 
+            request.headers.get('authorization')
+        )
+
+        if auth is None:
+            raise UnauthorizedError
+        
+        try:
+            if 'bearer' in auth:
+                _, token = auth.split('bearer ')
+            elif 'Bearer' in auth:
+                _, token = auth.split('Bearer ')
+            else:
+                raise Exception
+        except:
+            raise UnauthorizedError
+        
+        try:
+            SessionLocal = get_session_local()
+            with SessionLocal() as session:
+                repo = PacienteRepository(session)
+                service = AuthService(repo)
+                current_user = service.get_user_by_token(token)
+        except:
+            raise UnauthorizedError
+
+        if iscoroutinefunction(func):
+            return await func(self, request, current_user)
+        else:
+            return func(self, request, current_user)
+    
+    return inner
+    

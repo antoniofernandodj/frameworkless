@@ -40,10 +40,7 @@ class ExameController:
     @post("/exames/")
     @validate_body(ExameFieldsValidator)
     async def create_exame(self, request: Request):
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-
+        body = await request.get_body()
         exame: Exame = self.exame_repository.create(body['type'])
         return make_response(exame, 201)
 
@@ -61,10 +58,7 @@ class ExameController:
     @validate_params(IdValidator)
     async def update_exame(self, request: Request, id: str):
         exame_id = int(id)
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-
+        body = await request.get_body()
         exame: Optional[Exame] = self.exame_repository.update(exame_id, body)
         if not exame:
             raise NotFoundError("Exame not found")

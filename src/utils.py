@@ -323,9 +323,6 @@ class Route:
         return result
 
 
-
-
-
 def get(pattern: str):
     def decorator(func: Callable):
 
@@ -341,7 +338,6 @@ def get(pattern: str):
                 return func(self, *args, **kwargs)
         
         return inner
-    
     return decorator
 
 def post(pattern: str):
@@ -359,7 +355,6 @@ def post(pattern: str):
                 return func(self, *args, **kwargs)
         
         return inner
-    
     return decorator
 
 def patch(pattern: str):
@@ -377,9 +372,7 @@ def patch(pattern: str):
                 return func(self, *args, **kwargs)
         
         return inner
-    
     return decorator
-
 
 def put(pattern: str):
     def decorator(func: Callable):
@@ -396,13 +389,9 @@ def put(pattern: str):
                 return func(self, *args, **kwargs)
         
         return inner
-    
     return decorator
 
-
 def delete(pattern: str):
-
-
     def decorator(func: Callable):
 
         func.CONTROLLER_DATA = {
@@ -417,5 +406,4 @@ def delete(pattern: str):
                 return func(self, *args, **kwargs)
         
         return inner
-    
     return decorator

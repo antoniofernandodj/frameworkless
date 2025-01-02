@@ -16,7 +16,7 @@ class GenericRepository(Generic[T]):
         self.db = session
 
     def get_by_id(self, user_id: int) -> Optional[T]:
-        return self.db.query(self.model).filter_by(id=user_id).first()
+        return self.db.query(self.model).filter_by(_id=user_id).first()
 
     def get_all(self) -> List[T]:
         return self.db.query(self.model).all()

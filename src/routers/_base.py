@@ -69,7 +69,6 @@ class BaseRouter(ABC):
                     methods.append(method)
 
         self.register_endpoints(methods)
-        print(f'Registered Controller: {type(controller).__name__}')
 
     def __get_options_handler(self, allowed_methods):
         async def endpoint_handler(*args, **kwargs):

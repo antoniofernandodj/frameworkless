@@ -34,11 +34,7 @@ class TesteController:
 
     @post("/test/login/<token:str>/")
     async def teste_endpoint_5(self, request: Request, token: str):
-
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
-
+        body = await request.get_body()
         return make_response(
             {
                 'token': token,

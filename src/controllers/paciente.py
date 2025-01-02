@@ -46,9 +46,7 @@ class PacienteController:
     @validate_body(PacienteFieldsValidator)
     @validate_params(IdValidator)
     async def update_paciente(self, request: Request, id: int):
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
+        body = await request.get_body()
         paciente = self.repo.update(id, body)
         if paciente is None:
             raise NotFoundError('Paciente não encontrado')

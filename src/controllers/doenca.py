@@ -39,9 +39,7 @@ class DoencaController:
     @post("/doencas/")
     @validate_body(DoencaFieldsValidator)
     async def create_doenca(self, request: Request):
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
+        body = await request.get_body()
         doenca: Doenca = self.doenca_repository.create(body['name'])
         return make_response(doenca, 201)
 
@@ -50,9 +48,7 @@ class DoencaController:
     @validate_params(IdValidator)
     async def update_doenca(self, request: Request, id: str):
         doenca_id = int(id)
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
+        body = await request.get_body()
         doenca: Optional[Doenca] = self.doenca_repository.update(doenca_id, body)
         if not doenca:
             raise NotFoundError('Doença not found')

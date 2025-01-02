@@ -43,9 +43,7 @@ class MedicamentoController:
     @post("/medicamentos/")
     @validate_body(MedicamentoFieldsValidator)
     async def create_medicamento(self, request: Request):
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
+        body = await request.get_body()
         medicamento: Medicamento = self.medicamento_repository.create(body['name'])
         return make_response(medicamento, 201)
 
@@ -54,9 +52,7 @@ class MedicamentoController:
     @validate_params(IdValidator)
     async def update_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
-        body = await request.get_body(None)
-        if body is None:
-            raise UnprocessableEntityError
+        body = await request.get_body()
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
             raise NotFoundError("medicamento not found")

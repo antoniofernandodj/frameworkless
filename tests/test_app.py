@@ -4,73 +4,38 @@ from secrets import token_urlsafe
 import unittest
 
 
-from tests.mock import make_rsgi_request, mock_request
+from tests.mock import TestClient
 from src import App
 
 
 
-class TestApp(unittest.IsolatedAsyncioTestCase):
+class Test_1_App(unittest.IsolatedAsyncioTestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app = App(mode='test')
+        app = App(mode='test')
+        cls.client = TestClient(app)
+        cls.data = {}
 
-    async def test_app1(self):
-        response = await mock_request(
-            app=self.app,
+    async def test_1_app(self):
+        self.assertEqual(self.client.app.mode, 'test')
+
+    async def test_2_settings(self):
+        from src.config import settings
+        self.assertEqual(settings.mode, 'TEST')
+
+    async def test_3_controller_1(self):
+        response = await self.client.get(
             path='/teste/',
-            method='GET',
             headers={'content-type': 'application/json'},
             body=None,
             query_string=''
         )
         self.assertEqual(response.status, 200)
 
-    async def test_app2(self):
-        self.assertEqual(self.app.mode, 'test')
-
-    async def test_settings(self):
-        from src.config import settings
-        self.assertEqual(settings.mode, 'TEST')
-
-    async def test_sign_in_and_login(self):
-        response = await mock_request(
-            app=self.app,
-            path='/signin/',
-            method='POST',
-            headers={'content-type': 'application/json'},
-            body=dict(
-                nome='teste',
-                login='teste',
-                password='senha',
-                data_nascimento=date(1, 1, 1).isoformat(),
-                sexo='M',
-                contato=None,
-                endereco=None,
-                responsavel=None,
-            ),
-            query_string='teste=1'
-        )
-        self.assertEqual(response.status, 201)
-
-        response = await mock_request(
-            app=self.app,
-            path='/login/',
-            method='POST',
-            headers={'content-type': 'application/json'},
-            body=dict(
-                login='teste',
-                password='senha'
-            ),
-            query_string='teste=1'
-        )
-        self.assertEqual(response.status, 200)
-
-    async def test_controller_2(self):
-        response = await mock_request(
-            app=self.app,
+    async def test_4_controller_2(self):
+        response = await self.client.get(
             path='/teste/1/',
-            method='GET',
             headers={'content-type': 'application/json'},
             body=None,
             query_string='teste=1'
@@ -78,11 +43,9 @@ class TestApp(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, json.dumps({'id': 1}))
 
-    async def test_controller_3(self):
-        response = await mock_request(
-            app=self.app,
+    async def test_5_controller_3(self):
+        response = await self.client.get(
             path='/teste/1/teste/2/',
-            method='GET',
             headers={'content-type': 'application/json'},
             body=None,
             query_string='teste=1'
@@ -90,11 +53,9 @@ class TestApp(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, json.dumps({'arg1': 1, 'arg2': 2}))
 
-    async def test_controller_4(self):
-        response = await mock_request(
-            app=self.app,
+    async def test_6_controller_4(self):
+        response = await self.client.get(
             path='/hello/antonio/',
-            method='GET',
             headers={'content-type': 'application/json'},
             body=None,
             query_string='key1=value1&key2=value2'
@@ -102,12 +63,10 @@ class TestApp(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, json.dumps({'name': 'antonio'}))
 
-    async def test_controller_5(self):
+    async def test_7_controller_5(self):
         token = token_urlsafe(10)
-        response = await mock_request(
-            app=self.app,
+        response = await self.client.post(
             path=f'/test/login/{token}/',
-            method='POST',
             headers={'content-type': 'application/json'},
             body=dict(user_id=10),
             query_string='key1=value1&key2=value2'
@@ -124,3 +83,129 @@ class TestApp(unittest.IsolatedAsyncioTestCase):
                 }
             })
         )
+
+
+class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        app = App(mode='test')
+        cls.client = TestClient(app)
+        cls.data = {}
+
+    def auth_headers(self):
+        return {
+            'content-type': 'application/json',
+            'Authorization': self.data['token']
+        }
+
+    async def test_1_sign_in(self):
+        response = await self.client.post(
+            path='/signin/',
+            headers={'content-type': 'application/json'},
+            body=dict(
+                nome='teste',
+                login='teste',
+                password='senha',
+                data_nascimento=date(1, 1, 1).isoformat(),
+                sexo='M',
+                contato=None,
+                endereco=None,
+                responsavel=None,
+            ),
+            query_string='teste=1'
+        )
+        self.assertEqual(response.status, 201)
+
+    async def test_2_login(self):
+        response = await self.client.post(
+            path='/login/',
+            headers={'content-type': 'application/json'},
+            body=dict(
+                login='teste',
+                password='senha'
+            ),
+            query_string='teste=1'
+        )
+
+        body = json.loads(response.body)
+        token = body['token']
+
+        self.data['token'] = token
+
+        self.assertEqual(response.status, 200)
+
+    async def test_3_auth_data(self):
+        response = await self.client.post(
+            path='/login/',
+            headers=self.auth_headers(),
+            body=dict(
+                login='teste',
+                password='senha'
+            ),
+            query_string='teste=1'
+        )
+
+        body = json.loads(response.body)
+
+        self.assertEqual(body['nome'], 'teste')
+
+
+class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        app = App(mode='test')
+        cls.client = TestClient(app)
+        cls.data = {}
+
+    def auth_headers(self):
+        return {
+            'content-type': 'application/json',
+            'Authorization': self.data['token']
+        }
+
+    async def test_1_cadastrar_doencas(self):
+        ...
+
+    async def test_2_atualizar_doenca(self):
+        ...
+
+    async def test_3_remover_doenca(self):
+        ...
+
+    async def test_4_criar_exames(self):
+        ...
+
+    async def test_5_marcar_exame(self):
+        ...
+
+    async def test_6_arquivar_resultado_de_exame(self):
+        ...
+
+    async def test_7_criar_consultas(self):
+        ...
+
+    async def test_8_marcar_consulta(self):
+        ...
+
+    async def test_9_arquivar_resultado_de_consulta(self):
+        ...
+
+    async def test_10_criar_tarefas(self):
+        ...
+
+    async def test_11_atualizar_tarefas(self):
+        ...
+
+    async def test_12_remover_tarefa(self):
+        ...
+
+    async def test_13_registrar_medicamentos(self):
+        ...
+
+    async def test_14_atualizar_medicamento(self):
+        ...
+
+    async def test_15_remover_medicamento(self):
+        ...

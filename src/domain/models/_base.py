@@ -42,9 +42,6 @@ class DomainModel:
             if not key.startswith('_')
         }
 
-        with open('teste', 'w') as f:
-            print(result, file=f)
-
         return result
 
     def update_from_dict(self, data: dict) -> None:
@@ -60,3 +57,7 @@ class DomainModel:
         )
 
         return f"{self.__class__.__name__}({attributes})"
+
+
+    def __repr__(self) -> str:
+        return self.__str__()
