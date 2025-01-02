@@ -2,7 +2,7 @@ import os
 import sys
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 project_path = str(Path(__file__).parent.parent.absolute())
@@ -10,18 +10,18 @@ project_path = str(Path(__file__).parent.parent.absolute())
 
 class Settings:
 
-    __instances = {}
+    __instance = None
 
-    def __new__(cls, *config_files: str):
-        key = tuple(config_files)
-        if key not in cls.__instances:
-            cls.__instances[key] = super().__new__(cls)
+    def __new__(cls):
+        if not cls.__instance:
+            cls.__instance = super().__new__(cls)
 
-        return cls.__instances[key]
+        return cls.__instance
 
 
-    def __init__(self, mode: str):
-        self.set_mode(mode)
+    def __init__(self, mode: Optional[str] = None):
+        if mode:
+            self.set_mode(mode)
     
     def get(self, name: str, default: Any = None) -> Any:
         return self._settings.get(name.upper(), default)
@@ -33,7 +33,7 @@ class Settings:
     
     def values(self):
         return self._settings
-    
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "_settings":
             super().__setattr__(name, value)
@@ -44,6 +44,7 @@ class Settings:
             self._settings[name.upper()] = value
 
     def set_mode(self, mode: str):
+        print(f'Settings env to mode {mode}')
         self._settings = {'MODE': mode.upper()}
         files = ('env.json', f"env.{mode.lower()}.json")
         try:
@@ -61,4 +62,4 @@ class Settings:
             sys.stderr.write(f"Warning: Configuration file '{file}' not found.\n")
 
 
-settings = Settings('dev')
+settings = Settings()

@@ -3,6 +3,7 @@ import json
 import base64
 import hmac
 import hashlib
+from typing import Optional
 
 try:
     from src.config import settings
@@ -16,9 +17,13 @@ def base64_url_encode(data: bytes) -> str:
 
 def generate_jwt(
     payload: dict,
-    secret_key: str = settings.SECRET_KEY,
+    secret_key: Optional[str] = None,
     expire_time_minutes = 60
 ) -> str:
+    if secret_key is None:
+        secret_key = settings.SECRET_KEY
+    if secret_key is None:
+        raise AttributeError
 
     d = datetime.now() + timedelta(minutes=expire_time_minutes)
 

@@ -14,7 +14,6 @@ except:
     from src.config import settings
 
 from typing import Any, Callable, Coroutine, Dict, List, Type, Union, Optional
-from src.infra.database.sql import init_mappers
 from src.models import DotDict, Request
 from src.routers import (
     ConsultaRouter,
@@ -160,14 +159,15 @@ class ASGI_RSGI_APP(ABC):
 class App(ASGI_RSGI_APP):
     def __init__(self, mode: str = 'dev'):
 
-        from src.infra.database.sql import get_session_local
-        # from src.infra.database.mongo import client
-
+        print(f'Running in mode: {mode}')
         self.last = True
         self.parent = None
         self.mode = mode
-        print(f'Running in mode: {mode}')
         settings.set_mode(mode)
+
+        from src.infra.database.sql import init_mappers
+        from src.infra.database.sql import get_session_local
+        # from src.infra.database.mongo import client
 
         SessionLocal = get_session_local()
         session = SessionLocal()

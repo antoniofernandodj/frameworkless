@@ -5,7 +5,7 @@ import unittest
 
 
 from tests.mock import make_rsgi_request, mock_request
-from app import App
+from src import App
 
 
 
