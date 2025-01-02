@@ -5,6 +5,7 @@ from .medicamento import MedicamentoController
 from .paciente import PacienteController
 from .tarefa import TarefaController
 from .teste import TesteController
+from .auth import AuthController
 
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     'MedicamentoController',
     'PacienteController',
     'TarefaController',
-    'TesteController'
+    'TesteController',
+    'AuthController'
 ]

@@ -1,8 +1,8 @@
-from src.exceptions.http import NotFoundError
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Any, Dict, Generic, Optional, TypeVar
 from src.domain.models import Paciente
-from src.repository import PacienteRepository
+from src.repository import PacienteRepository, GenericRepository
 from src.utils import (
     ParamsValidator,
     make_response,
@@ -25,48 +25,44 @@ class IdValidator(ParamsValidator):
     id: Annotated[int, "Id is required"]
 
 
-class PacienteController:
-    def __init__(self, paciente_repository: PacienteRepository) -> None:
-        self.paciente_repository = paciente_repository
+T = TypeVar('T')
 
-    @get(r"^/pacientes/$")
+
+class PacienteController:
+
+    def __init__(self, paciente_repository: PacienteRepository) -> None:
+        self.repo = paciente_repository
+
+    @get("/pacientes/")
     @validate_params(IdValidator)
     async def get_paciente(self, request: Request):
-        paciente_id: int = request.query['id']
-        paciente: Optional[Paciente] = self.paciente_repository.get_by_id(paciente_id)
+        id: int = request.query['id']
+        paciente = self.repo.get_by_id(id)
         if paciente is None:
-            raise NotFoundError('paciente not found')
-
+            raise NotFoundError('Paciente não encontrado')
         return make_response(paciente)
 
-    @post(r"^/pacientes/$")
-    @validate_body(PacienteFieldsValidator)
-    async def create_paciente(self, request: Request):
-        body = await request.get_body()
-        paciente: Paciente = self.paciente_repository.create(body['name'])
-        return make_response(paciente, 201)
-
-    @put(r"^/pacientes/(?P<id>\d+)$")
+    @put("/pacientes/<id:int>")
     @validate_body(PacienteFieldsValidator)
     @validate_params(IdValidator)
-    async def update_paciente(self, request: Request, id: str):
-        paciente_id = int(id)
-        body = await request.get_body()
-        paciente: Optional[Paciente] = self.paciente_repository.update(paciente_id, body['name'])
+    async def update_paciente(self, request: Request, id: int):
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+        paciente = self.repo.update(id, body)
         if paciente is None:
-            raise NotFoundError("paciente not found")
-
+            raise NotFoundError('Paciente não encontrado')
         return make_response(paciente)
 
-    @delete(r"^/pacientes/(?P<id>\d+)$")
+    @delete("/pacientes/<id:int>")
     @validate_params(IdValidator)
-    async def delete_paciente(self, request: Request, id: str):
-        paciente_id = int(id)
-        success: bool = self.paciente_repository.delete(paciente_id)
+    async def delete_paciente(self, request: Request, id: int):
+        success = self.repo.delete(id)
         if not success:
-            raise NotFoundError("paciente not found")
+            raise NotFoundError('Paciente não encontrado')
+        return make_response(204)
 
-        return make_response({})
+
 
 
 """

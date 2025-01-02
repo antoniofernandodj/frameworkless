@@ -2,7 +2,7 @@ from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Consulta
 from src.repository import ConsultaRepository
-from src.exceptions.http import InternalServerError, NotFoundError
+from src.exceptions.http import InternalServerError, NotFoundError, UnprocessableEntityError
 from src.utils import (
     ParamsValidator,
     make_response,
@@ -30,54 +30,54 @@ class ConsultaController:
     def __init__(self, consulta_repository: ConsultaRepository) -> None:
         self.consulta_repository = consulta_repository
 
-    @get(r"^/consultas/$")
+    @get("/consultas/")
     @validate_params(IdValidator)
     async def get_consulta(self, request: Request):
         consulta_id: int = request.query['id']
         consulta: Optional[Consulta] = self.consulta_repository.get_by_id(consulta_id)
         if consulta is None:
-            raise LookupError('consulta not found')
-
+            raise NotFoundError('Consulta not found')
         return make_response(consulta)
 
-    @post(r"^/consultas/$")    
+    @post("/consultas/")    
     @validate_body(ConsultaFieldsValidator)
     async def create_consulta(self, request: Request):
-        body = await request.get_body()
-        consulta: Consulta = self.consulta_repository.create(body['description'])
+        body = await request.get_body(None)
+        consulta = Consulta(**body)  # type: ignore
+        consulta: Consulta = self.consulta_repository.create(consulta)
         return make_response(consulta, 201)
     
-    @patch(r"^/consultas/(?P<id>\d+)/marcar$")
+    @patch("/consultas/<id:int>/marcar")
     @validate_params(IdValidator)
     async def marcar_consulta(self, request: Request, id: int):
         consulta_id = int(id)
         consulta = self.consulta_repository.update(consulta_id, {'marcado': True})
         if consulta is None:
-            raise LookupError('consulta not found')
-
+            raise NotFoundError('Consulta not found')
         return make_response(consulta)
 
-    @put(r"^/consultas/(?P<id>\d+)$")
+    @put("/consultas/<id:int>")
     @validate_body(ConsultaFieldsValidator)
     @validate_params(IdValidator)
     async def update_consulta(self, request: Request, id: int):
         consulta_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+
         consulta: Optional[Consulta] = self.consulta_repository.update(consulta_id, body)
         if not consulta:
-            raise LookupError("consulta not found")
-
+            raise NotFoundError("Consulta not found")
         return make_response(consulta)
 
-    @delete(r"^/consultas/(?P<id>\d+)$")
+    @delete("/consultas/<id:int>")
     @validate_params(IdValidator)
     async def delete_consulta(self, request: Request, id: int):
         consulta_id = int(id)
         success: bool = self.consulta_repository.delete(consulta_id)
         if not success:
-            raise LookupError("consulta not found")
-
-        return make_response({})
+            raise NotFoundError("Consulta not found")
+        return make_response(204)
 
 
 """

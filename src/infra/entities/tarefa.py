@@ -9,9 +9,9 @@ metadata = mapper_registry.metadata
 tarefa_table = Table(
     "tarefas",
     metadata,
-    Column("id", Integer, primary_key=True),
+    Column("_id", Integer, primary_key=True),
     Column("descricao", Text, nullable=False),
     Column("data_limite", Date, nullable=True),
     Column("status", String(50), nullable=False),
-    Column("paciente_id", Integer, ForeignKey("pacientes.id"), nullable=False),
+    Column("paciente_id", Integer, ForeignKey("pacientes._id"), nullable=False),
 )

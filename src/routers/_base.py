@@ -1,6 +1,9 @@
 from abc import ABC
 import re
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+from src.exceptions.http import MethodNotAllowedError
+from src.utils import Route, make_response
 
 
 MatchResult = Tuple[
@@ -10,33 +13,48 @@ MatchResult = Tuple[
 
 class BaseRouter(ABC):
 
-    routes: dict
+    routes: List[Dict[str, Any]]
 
-    def match_route(self, method, path) -> MatchResult:
-        for pattern, methods in self.routes.items():
-            compiled_pattern = re.compile(pattern)
-            match = compiled_pattern.match(path)
-            
-            if match and method in methods:
-                return methods[method], match.groupdict()
+    def match_route(
+        self,
+        request_method: str,
+        request_path: str
+    ) -> MatchResult:
+
+        allowed_methods = set()
+        method_not_allowed = False                        
+        for item in self.routes:
+            endpoint_method = item['method']
+            endpoint_route = item['route']
+            endpoint_controller = item['controller']
+
+            if (m := endpoint_route.match(request_path)) is not None:
+                allowed_methods.add(endpoint_method)
+                if endpoint_method != request_method:
+                    method_not_allowed = True
+                    continue
+                return endpoint_controller, m
+
+        if request_method == "OPTIONS":
+            return self.__get_options_handler(allowed_methods), {}
+
+        if method_not_allowed:
+            raise MethodNotAllowedError
 
         return None, None
 
-
     def register_endpoint(self, func):
-        data = func.CONTROLLER_DATA
-        method = data['method']
-        pattern = data['pattern']
+        controller_data = func.CONTROLLER_DATA
+        method = controller_data['method']
+        pattern = controller_data['pattern']
 
         if not getattr(self, 'routes', None):
-            self.routes = {}
+            self.routes = []
 
-        if not self.routes.get(pattern):
-            self.routes[pattern] = {}
 
-        self.routes[pattern][method] = func
-        return data
-
+        r = Route(pattern, method)
+        self.routes.append({'method': method, 'route': r, 'controller': func})
+        return controller_data
 
     def register_endpoints(self, endpoints: Union[tuple, list]):
         for endpoint in endpoints:
@@ -52,6 +70,16 @@ class BaseRouter(ABC):
 
         self.register_endpoints(methods)
         print(f'Registered Controller: {type(controller).__name__}')
+
+    def __get_options_handler(self, allowed_methods):
+        async def endpoint_handler(*args, **kwargs):
+            methods = sorted(allowed_methods | {"OPTIONS"})
+            return make_response(204, None, {
+                "Allow": ", ".join(methods),
+                "Content-Length": "0",
+            })
+
+        return endpoint_handler
 
 
 class APIRouter(BaseRouter):

@@ -1,3 +1,4 @@
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Medicamento
@@ -30,44 +31,45 @@ class MedicamentoController:
     def __init__(self, medicamento_repository: MedicamentoRepository) -> None:
         self.medicamento_repository = medicamento_repository
 
-    @get(r"^/medicamentos/$")
+    @get("/medicamentos/")
     @validate_params(IdValidator)
     async def get_medicamento(self, request: Request):
         medicamento_id: int = request.query['id']
         medicamento: Optional[Medicamento] = self.medicamento_repository.get_by_id(medicamento_id)
         if medicamento is None:
-            raise LookupError('medicamento not found')
-
+            raise NotFoundError('medicamento not found')
         return make_response(medicamento)
 
-    @post(r"^/medicamentos/$")
+    @post("/medicamentos/")
     @validate_body(MedicamentoFieldsValidator)
     async def create_medicamento(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
         medicamento: Medicamento = self.medicamento_repository.create(body['name'])
         return make_response(medicamento, 201)
 
-    @put(r"^/medicamentos/(?P<id>\d+)$")
+    @put("/medicamentos/<id:int>")
     @validate_body(MedicamentoFieldsValidator)
     @validate_params(IdValidator)
     async def update_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
-            raise LookupError("medicamento not found")
-
+            raise NotFoundError("medicamento not found")
         return make_response(medicamento)
 
-    @delete(r"^/medicamentos/(?P<id>\d+)$")
+    @delete("/medicamentos/<id:int>")
     @validate_params(IdValidator)
     async def delete_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
         success: bool = self.medicamento_repository.delete(medicamento_id)
         if not success:
-            raise LookupError("medicamento not found")
-
-        return make_response({})
+            raise NotFoundError("medicamento not found")
+        return make_response(204)
 
 
 """

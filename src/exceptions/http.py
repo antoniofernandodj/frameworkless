@@ -9,6 +9,9 @@ class HTTPException(Exception):
             "status": self.code,
             "body": {
                 "detail": self.detail
+            },
+            "headers": {
+                'content-type': 'application/json'
             }
         }
 

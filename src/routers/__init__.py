@@ -5,6 +5,7 @@ from .medicamento import MedicamentoRouter
 from .paciente import PacienteRouter
 from .tarefa import TarefaRouter
 from .teste import TesteRouter
+from .auth import AuthRouter
 
 
 
@@ -15,5 +16,6 @@ __all__ = [
     'MedicamentoRouter',
     'PacienteRouter',
     'TarefaRouter',
-    'TesteRouter'
+    'TesteRouter',
+    'AuthRouter'
 ]

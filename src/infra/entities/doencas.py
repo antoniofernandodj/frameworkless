@@ -9,9 +9,9 @@ metadata = mapper_registry.metadata
 doenca_table = Table(
     "doencas",
     metadata,
-    Column("id", Integer, primary_key=True),
+    Column("_id", Integer, primary_key=True),
     Column("nome", String(255), nullable=False),
     Column("descricao", Text, nullable=True),
     Column("codigo_cid", String(20), nullable=True),
-    Column("paciente_id", Integer, ForeignKey("pacientes.id"), nullable=False),
+    Column("paciente_id", Integer, ForeignKey("pacientes._id"), nullable=False),
 )

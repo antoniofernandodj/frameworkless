@@ -1,3 +1,4 @@
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Exame
@@ -27,54 +28,56 @@ class ExameController:
     def __init__(self, exame_repository: ExameRepository) -> None:
         self.exame_repository = exame_repository
 
-    @get(r"^/exames/$")
+    @get("/exames/")
     @validate_params(IdValidator)
     async def get_exame(self, request: Request):
         exame_id: int = request.query['id']
         exame: Optional[Exame] = self.exame_repository.get_by_id(exame_id)
         if exame is None:
-            raise LookupError('exame not found')
-
+            raise NotFoundError('Exame not found')
         return make_response(exame)
 
-    @post(r"^/exames/$")
+    @post("/exames/")
     @validate_body(ExameFieldsValidator)
     async def create_exame(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+
         exame: Exame = self.exame_repository.create(body['type'])
         return make_response(exame, 201)
 
-    @patch(r"^/exames/(?P<id>\d+)/marcar$")
+    @patch("/exames/<id:int>/marcar")
     @validate_params(IdValidator)
     async def marcar_exame(self, request: Request, id: str):
         exame_id = int(id)
         exame = self.exame_repository.update(exame_id, {'marcado': True})
         if exame is None:
-            raise LookupError('exame not found')
-
+            raise NotFoundError('Exame not found')
         return make_response(exame)
 
-    @put(r"^/exames/(?P<id>\d+)$")
+    @put("/exames/<id:int>")
     @validate_body(ExameFieldsValidator)
     @validate_params(IdValidator)
     async def update_exame(self, request: Request, id: str):
         exame_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+
         exame: Optional[Exame] = self.exame_repository.update(exame_id, body)
         if not exame:
-            raise LookupError("exame not found")
-
+            raise NotFoundError("Exame not found")
         return make_response(exame)
 
-    @delete(r"^/exames/(?P<id>\d+)$")
+    @delete("/exames/<id:int>")
     @validate_params(IdValidator)
     async def delete_exame(self, request: Request, id: str):
         exame_id = int(id)
         success: bool = self.exame_repository.delete(exame_id)
         if not success:
-            raise LookupError("exame not found")
-
-        return make_response({})
+            raise NotFoundError("Exame not found")
+        return make_response(204)
     
 
 """

@@ -9,13 +9,13 @@ metadata = mapper_registry.metadata
 medicamento_table = Table(
     "medicamentos",
     metadata,
-    Column("id", Integer, primary_key=True),
+    Column("_id", Integer, primary_key=True),
     Column("nome", String(255), nullable=False),
     Column("dosagem", String(50), nullable=False),
     Column("frequencia", String(50), nullable=False),
     Column("via", String(50), nullable=True),
     Column("inicio_tratamento", Date, nullable=False),
     Column("fim_tratamento", Date, nullable=True),
-    Column("paciente_id", Integer, ForeignKey("pacientes.id"), nullable=False),
-    Column("doenca_id", Integer, ForeignKey("doencas.id"), nullable=True),
+    Column("paciente_id", Integer, ForeignKey("pacientes._id"), nullable=False),
+    Column("doenca_id", Integer, ForeignKey("doencas._id"), nullable=True),
 )

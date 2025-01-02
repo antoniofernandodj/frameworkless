@@ -6,7 +6,6 @@ from typing import Optional
 class Consulta(DomainModel):
     def __init__(
         self,
-        id: int,
         data: date,
         marcado: bool,
         medico: str,
@@ -14,9 +13,10 @@ class Consulta(DomainModel):
         local: Optional[str] = None,
         observacoes: Optional[str] = None,
         paciente_id: Optional[int] = None,
-        doenca_id: Optional[int] = None
+        doenca_id: Optional[int] = None,
+        _id: Optional[int] = None
     ):
-        self.id = id
+        self._id = _id
         self.data = data
         self.marcado = marcado
         self.medico = medico

@@ -7,7 +7,6 @@ class Medicamento(DomainModel):
 
     def __init__(
         self,
-        id: int,
         nome: str,
         dosagem: str,
         frequencia: str,
@@ -15,9 +14,10 @@ class Medicamento(DomainModel):
         inicio_tratamento: Optional[date] = None,
         fim_tratamento: Optional[date] = None,
         paciente_id: Optional[int] = None,
-        doenca_id: Optional[int] = None
+        doenca_id: Optional[int] = None,
+        _id: Optional[int] = None,
     ):
-        self.id = id
+        self._id = _id
         self.nome = nome
         self.dosagem = dosagem
         self.frequencia = frequencia

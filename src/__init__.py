@@ -6,10 +6,16 @@ from contextlib import suppress
 import inspect
 import logging
 import json
-from src import types as t
+from src import _types as t
+
+try:
+    from config import settings
+except:
+    from src.config import settings
 
 from typing import Any, Callable, Coroutine, Dict, List, Type, Union, Optional
-from src.models import Request
+from src.infra.database.sql import init_mappers
+from src.models import DotDict, Request
 from src.routers import (
     ConsultaRouter,
     DoencaRouter,
@@ -17,11 +23,13 @@ from src.routers import (
     MedicamentoRouter,
     PacienteRouter,
     TarefaRouter,
-    TesteRouter
+    TesteRouter,
+    AuthRouter
 )
 
-from src.exceptions.http import NotFoundError
-from src.utils import Response, assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
+from src.utils import ParamsValidator, assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
+from src.models import Response
 
 
 with suppress(Exception):
@@ -150,31 +158,50 @@ class ASGI_RSGI_APP(ABC):
 
 
 class App(ASGI_RSGI_APP):
-    def __init__(self):
+    def __init__(self, mode: str = 'dev'):
 
-        from src.infra.database.sql import SessionLocal
+        from src.infra.database.sql import get_session_local
         # from src.infra.database.mongo import client
 
         self.last = True
         self.parent = None
+        self.mode = mode
+        print(f'Running in mode: {mode}')
+        settings.set_mode(mode)
 
+        SessionLocal = get_session_local()
         session = SessionLocal()
         # session = client
 
+        init_mappers()
+
         self.routers = (
-            ConsultaRouter(session),
-            DoencaRouter(session),
-            ExameRouter(session),
-            MedicamentoRouter(session),
-            TarefaRouter(session),
-            PacienteRouter(session),
+            # ConsultaRouter(session),
+            # DoencaRouter(session),
+            # ExameRouter(session),
+            # MedicamentoRouter(session),
+            # TarefaRouter(session),
+            # PacienteRouter(session),
             TesteRouter(),
+            AuthRouter(session),
         )
 
     async def __rsgi__(self, scope: 'GranianScope', protocol: 'RSGIHTTPProtocol'):
 
-        async def get_body():
-            return await self.rsgi_parse_body(protocol)
+        async def get_body(validator: Optional[Type[ParamsValidator]] = None):
+            request_body = await self.rsgi_parse_body(protocol)
+
+            if validator is None:
+                return request_body
+
+            if validator is None and not request_body:
+                return None
+
+            if not isinstance(request_body, DotDict):
+                raise UnprocessableEntityError('Tipo de body incorreto')
+
+            request_body = validator.validate(request_body)
+            return request_body
 
         response = await self.dispatch_request(
             scope.query_string,
@@ -197,8 +224,19 @@ class App(ASGI_RSGI_APP):
         if scope['type'] == 'lifespan':
             return
         
-        async def get_body():
-            return await self.asgi_parse_body(receive)
+        async def get_body(validator: Optional[Type[ParamsValidator]] = None):
+            request_body = await self.asgi_parse_body(receive)
+            if validator is None:
+                return request_body
+
+            if validator is None and not request_body:
+                return None
+
+            if not isinstance(request_body, DotDict):
+                raise UnprocessableEntityError('Tipo de body incorreto')
+
+            request_body = validator.validate(request_body)
+            return request_body
         
         headers = {
             key.decode('utf-8'): item.decode('utf-8')
@@ -227,9 +265,13 @@ class App(ASGI_RSGI_APP):
         query_string: str,
         path: str,
         method: str,
-        get_body_callback: Callable[[], Coroutine],
+        get_body_callback: Callable[
+            [Optional[Type[ParamsValidator]]],
+            Coroutine[Any, Any, Optional[DotDict]]
+        ],
         headers: Dict[str, str],
     ) -> Response:
+
         query = parse_query_string(query_string)
         endpoint_handler, path_args = None, None
         for router in self.routers:
@@ -250,16 +292,20 @@ class App(ASGI_RSGI_APP):
 
         if iscoroutinefunction(endpoint_handler):
             response = await endpoint_handler(request, **path_args)
+            print({
+                'request': request,
+                'response': response,
+                'endpoint_handler': endpoint_handler
+            })
         else:
             response = endpoint_handler(request, **path_args)
-            print(response)
 
         return response
 
     async def asgi_parse_body(
         self,
         receive: t.Receive
-    ) -> Union[List[Any], Dict[str, Any], str, None]:
+    ) -> Optional[DotDict]:
 
         body_bytes = b""
         try:
@@ -270,34 +316,34 @@ class App(ASGI_RSGI_APP):
                     if not message.get("more_body", False):
                         break
         except Exception:
+            raise UnprocessableEntityError
+        
+        if not body_bytes:
             return None
 
         try:
             body = json.loads(body_bytes.decode('utf-8'))
+            body = DotDict(body)
         except json.JSONDecodeError:
-            try:
-                body = body_bytes.decode('utf-8')
-            except:
-                body = str(body_bytes)
-        
+            raise UnprocessableEntityError
+
         return body
 
     async def rsgi_parse_body(
         self,
         protocol: 'RSGIHTTPProtocol'
-    ) -> Union[List[Any], Dict[str, Any], str, None]:
-        
-        try:
-            body_bytes = await protocol()
-        except:
+    ) -> Optional[DotDict]:
+
+        body_bytes: bytes = await protocol()
+        if not body_bytes:
             return None
+        
+        body_string = body_bytes.decode('utf-8')
 
         try:
-            body = json.loads(body_bytes.decode('utf-8'))
+            body = json.loads(body_string)
+            body = DotDict(body)
         except json.JSONDecodeError:
-            try:
-                body = body_bytes.decode('utf-8')
-            except:
-                body = str(body_bytes)
+            raise UnprocessableEntityError
         
         return body

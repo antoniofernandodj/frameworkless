@@ -20,6 +20,12 @@ class GenericRepository(Generic[T]):
 
     def get_all(self) -> List[T]:
         return self.db.query(self.model).all()
+    
+    def get_by(self, **kwargs) -> Optional[T]:
+        return self.db.query(self.model).filter_by(**kwargs).first()
+    
+    def filter_by(self, **kwargs) -> List[T]:
+        return self.db.query(self.model).filter_by(**kwargs).all()
 
     def create(self, item: T) -> T:
         self.db.add(item)
@@ -27,7 +33,7 @@ class GenericRepository(Generic[T]):
         self.db.refresh(item)
         return item
 
-    def update(self, id: int, data: dict[str, Any]) -> Optional[T]:
+    def update(self, id: int, data: Dict[str, Any]) -> Optional[T]:
         item = self.get_by_id(id)
         if not item:
             return None

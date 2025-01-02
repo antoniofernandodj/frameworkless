@@ -4,7 +4,8 @@ from src.repository.sql import (
     TarefaRepository,
     PacienteRepository,
     ConsultaRepository,
-    MedicamentoRepository
+    MedicamentoRepository,
+    GenericRepository
 )
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     'TarefaRepository',
     'PacienteRepository',
     'ConsultaRepository',
-    'MedicamentoRepository'
+    'MedicamentoRepository',
+    'GenericRepository'
 ]

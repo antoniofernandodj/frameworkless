@@ -1,3 +1,4 @@
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.models import Request
 from typing import Annotated, Optional
 from src.domain.models import Doenca
@@ -26,44 +27,45 @@ class DoencaController:
     def __init__(self, doenca_repository: DoencaRepository) -> None:
         self.doenca_repository = doenca_repository
 
-    @get(r"^/doencas/$")
+    @get("/doencas/")
     @validate_params(IdValidator)
     async def get_doenca(self, request: Request):
         doenca_id: int = request.query['id']
         doenca: Optional[Doenca] = self.doenca_repository.get_by_id(doenca_id)
         if doenca is None:
-            raise LookupError('doenca not found')
-
+            raise NotFoundError('Doença not found')
         return make_response(doenca)
 
-    @post(r"^/doencas/$")
+    @post("/doencas/")
     @validate_body(DoencaFieldsValidator)
     async def create_doenca(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
         doenca: Doenca = self.doenca_repository.create(body['name'])
         return make_response(doenca, 201)
 
-    @put(r"^/doencas/(?P<id>\d+)$")
+    @put("/doencas/<id:int>")
     @validate_body(DoencaFieldsValidator)
     @validate_params(IdValidator)
     async def update_doenca(self, request: Request, id: str):
         doenca_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
         doenca: Optional[Doenca] = self.doenca_repository.update(doenca_id, body)
         if not doenca:
-            raise LookupError("doenca not found")
-
+            raise NotFoundError('Doença not found')
         return make_response(doenca)
 
-    @delete(r"^/doencas/(?P<id>\d+)$")
+    @delete("/doencas/<id:int>")
     @validate_params(IdValidator)
     async def delete_doenca(self, request: Request, id: str):
         doenca_id = int(id)
         success: bool = self.doenca_repository.delete(doenca_id)
         if not success:
-            raise LookupError("doenca not found")
-
-        return make_response({})
+            raise NotFoundError('Doença not found')
+        return make_response(204)
 
 
 """

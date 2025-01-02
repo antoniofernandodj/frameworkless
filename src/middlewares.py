@@ -118,33 +118,21 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
                     "status": 404,
                     "body": {
                         "detail": str(error)
+                    },
+                    "headers": {
+                        'content-type': 'application/json'
                     }
                 }
             else:
                 response = error.json()
 
-            if not is_rsgi_app(scope):
-                scope['status'] = response["status"]
-
-            if is_rsgi_app(scope):
-                assert protocol_or_receive
-                protocol = protocol_or_receive
-                response_headers = {}
-                headers_response = headers_to_response(response_headers, mode='str')
-                protocol.response_str(
-                    status=response['status'],
-                    headers=assure_tuples_of_str(headers_response),
-                    body=json.dumps(response['body'])
-                )
-            else:
-                body = response.get("body", {})
-                await self.send_response(
-                    scope,
-                    send,
-                    response["status"],
-                    json.dumps(body),
-                    response.get('headers', {})
-                )
+            await self.send_response(
+                scope,
+                send or protocol_or_receive,
+                response["status"],
+                json.dumps(response.get("body", {})),
+                response.get('headers', {})
+            )
 
         except Exception as error:
 
@@ -278,8 +266,12 @@ class CORSMiddleware2(ASGI_RSGI_APP):
             else:
                 result_headers[key] = value
 
-        return {
+        response = {
             "status": status,
             "body": body.decode("utf-8"),
             "headers": result_headers
         }
+
+        print({"275 middlewares": response})
+
+        return response

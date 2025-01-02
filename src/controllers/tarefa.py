@@ -2,7 +2,7 @@ from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Tarefa
 from src.repository import TarefaRepository
-from src.exceptions.http import NotFoundError
+from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.utils import (
     ParamsValidator,
     make_response,
@@ -27,44 +27,47 @@ class TarefaController:
     def __init__(self, tarefa_repository: TarefaRepository) -> None:
         self.tarefa_repository = tarefa_repository
 
-    @get(r"^/tarefas/$")
+    @get("/tarefas/")
     @validate_params(IdValidator)
     async def get_tarefa(self, request: Request):
         tarefa_id: int = request.query['id']
         tarefa: Optional[Tarefa] = self.tarefa_repository.get_by_id(tarefa_id)
         if tarefa is None:
             raise NotFoundError('tarefa not found')
-
         return make_response(tarefa)
 
-    @post(r"^/tarefas/$")
+    @post("/tarefas/")
     @validate_body(TarefaFieldsValidator)
     async def create_tarefa(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+        
         tarefa: Tarefa = self.tarefa_repository.create(body['description'])
         return make_response(tarefa, 201)
 
-    @put(r"^/tarefas/(?P<id>\d+)$")
+    @put("/tarefas/<id:int>")
     @validate_body(TarefaFieldsValidator)
     @validate_params(IdValidator)
     async def update_tarefa(self, request: Request, id: str):
         tarefa_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
+        
         tarefa: Optional[Tarefa] = self.tarefa_repository.update(tarefa_id, body)
         if not tarefa:
             raise NotFoundError("tarefa not found")
-
         return make_response(tarefa)
 
-    @delete(r"^/tarefas/(?P<id>\d+)$")
+    @delete("/tarefas/<id:int>")
     @validate_params(IdValidator)
     async def delete_tarefa(self, request: Request, id: str):
         paciente_id = int(id)
         success: bool = self.tarefa_repository.delete(paciente_id)
         if not success:
             raise NotFoundError("Tarea not found")
-
-        return make_response({})
+        return make_response(204)
 
 
 """

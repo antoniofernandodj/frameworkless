@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import TypeVar
+from asyncio import iscoroutinefunction
 from contextlib import suppress
 from copy import deepcopy
+import re
 from typing import Any, Dict, Literal, Optional, Tuple, Type, get_type_hints, get_args, Annotated
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
@@ -10,6 +13,8 @@ from src.domain.models._base import DomainModel
 from src.exceptions.http import UnprocessableEntityError
 from src.models import Response
 
+
+T = TypeVar('T')
 
 
 def make_response(*args) -> Response:
@@ -109,7 +114,7 @@ class ParamsValidator:
         return metadata
 
     @classmethod
-    def validate(cls, params: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(cls, params: T) -> T:
         params_after = deepcopy(params)
         validators = cls.get_field_metadata()
 
@@ -117,7 +122,7 @@ class ParamsValidator:
             param_type = type_data['type']
             error_msg = type_data['msg']
             try:
-                params_after[field_name] = param_type(params[field_name])
+                params_after[field_name] = param_type(params[field_name])  # type: ignore
             except Exception:
                 del params_after
                 raise UnprocessableEntityError(error_msg)
@@ -201,8 +206,124 @@ def print_app(app):
     for app in apps:
         print(f'app: {app}')
 
-    import os
-    os.system('clear')
+
+
+class Route:
+    def __init__(self, path: str, endpoint: Callable):
+        self.path = path
+        self.endpoint = endpoint
+        self.pattern, self.param_names = self._compile_path(path)
+
+    def __str__(self):
+        return f'Route(path="{self.path}", pattern="{self.pattern}")'
+    
+    def __repr__(self):
+        return f'Route(path="{self.path}", pattern="{self.pattern}")'
+
+    def _compile_path(self, path: str) -> Tuple[re.Pattern, List[Dict[str, str]]]:
+        param_names = []
+        regex = re.sub(
+            r"<(\w+):([a-zA-Z0-9_\[\]-]+)>",
+            lambda m: self._convert_placeholder(m, param_names),
+            path
+        )
+
+        return re.compile(f"^{regex}$"), param_names
+
+    def _convert_placeholder(
+        self,
+        match: re.Match,
+        param_names: List[Dict[str, str]]
+    ) -> str:
+        
+        name, typ = match.groups()
+        param_names.append({'name': name, 'type': typ})
+
+        if typ == "int":
+            result = r"(\d+)"
+        elif typ == "str":
+            result = r"([^/]+)"
+        elif typ == "float":
+            result = r"(\d+\.\d+)"
+        elif typ == 'list':
+            result = r"((?:[^/]+,)*[^/]+)"
+        elif typ == 'list[int]':
+            result = r"((?:\d+,)*\d+)"
+        elif typ == 'list[float]':
+            result = r"((?:\d+\.\d+,)*\d+\.\d+)"
+        elif typ == 'list[str]':
+            result = r"((?:[^/]+,)*[^/]+)"
+        elif typ == 'dict':
+            result = r"((?:[^/]+,)*[^/]+)"
+        else:
+            raise ValueError(f"Tipo de parâmetro desconhecido: {typ}")
+
+
+        return result
+
+
+    def match(self, path: str) -> Union[None, Dict[str, Any]]:
+        matched = self.pattern.search(path)
+
+        if not matched:
+            return None
+
+        g: Dict[str, type] = {
+            'int': int,
+            'str': str,
+            'float': float,
+            'list': list,
+            'list[int]': list[int],
+            'list[float]': list[float],
+            'list[str]': list[str],
+            'dict': dict
+        }
+
+        values = {}
+        for i, param in enumerate(self.param_names):
+            typ = g[param['type']]
+            name = param['name']
+
+            mg = matched.groups()
+            if typ == int:
+                value = typ(mg[i])
+            elif typ == float:
+                value = typ(mg[i])
+            elif typ == list:
+                value = mg[i].split(',')
+            elif typ == list[int]:
+                value = [int(x) for x in mg[i].split(',')]
+            elif typ == list[float]:
+                value = [float(x) for x in mg[i].split(',')]
+            elif typ == list[str]:
+                value = mg[i].split(',')
+            elif typ == dict:
+                value = self._parse_dict(mg[i])
+            elif typ == str:
+                value = typ(mg[i])
+            else:
+                value = typ(mg[i])
+
+            values[name] = value
+    
+        return values
+
+    def _parse_dict(self, dict_string: str) -> Dict[str, Any]:
+        items = dict_string.split(',')
+
+        result = {}
+        for item in items:
+            key_value = item.split('=')
+            if len(key_value) == 2:
+                key, value = key_value
+                result[key.strip()] = value.strip()
+            else:
+                raise ValueError(f"Formato de dicionário inválido: {item}")
+
+        return result
+
+
+
 
 
 def get(pattern: str):
@@ -214,9 +335,9 @@ def get(pattern: str):
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
-            try:
+            if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            except:
+            else:
                 return func(self, *args, **kwargs)
         
         return inner
@@ -232,9 +353,9 @@ def post(pattern: str):
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
-            try:
+            if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            except:
+            else:
                 return func(self, *args, **kwargs)
         
         return inner
@@ -250,9 +371,9 @@ def patch(pattern: str):
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
-            try:
+            if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            except:
+            else:
                 return func(self, *args, **kwargs)
         
         return inner
@@ -269,9 +390,9 @@ def put(pattern: str):
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
-            try:
+            if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            except:
+            else:
                 return func(self, *args, **kwargs)
         
         return inner
@@ -290,9 +411,9 @@ def delete(pattern: str):
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
-            try:
+            if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            except:
+            else:
                 return func(self, *args, **kwargs)
         
         return inner

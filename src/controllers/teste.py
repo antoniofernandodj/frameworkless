@@ -1,4 +1,5 @@
 from datetime import date
+from src.exceptions.http import UnprocessableEntityError
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Consulta
@@ -14,65 +15,34 @@ from src.utils import (
 
 class TesteController:
 
-    @get(r"^/teste/$")
+    @get("/teste/")
     async def teste_endpoint_1(self, request: Request):
-        # print('request: ', request)
-        return make_response(Consulta(1, date(1,2,3), True, 'medico'))
+        consulta = Consulta(date(1,2,3), True, 'medico')
+        return make_response(consulta)
 
-    @get(r"^/teste/(?P<id>\d+)$")
-    async def teste_endpoint_1_2(self, request: Request, id: int):
+    @get("/teste/<id:int>/")
+    async def teste_endpoint_2(self, request: Request, id: int):
+        return make_response({'id': id})
 
-        print({'id': id})
-
-        return make_response({'arg': id})
-
-
-    @post(r"^/teste/$")
-    async def teste_endpoint_2(self, request: Request):
-        print('request: ', request)
-        print('Fetching the body...')
-        print({'/teste/ body': await request.get_body()})
-
-        print(f'request headers: {request.headers}')
-
-        return make_response(200, {})
+    @get("/teste/<id_1:int>/teste/<id_2:int>/")
+    async def teste_endpoint_3(self, request: Request, id_1: int, id_2: int):
+        return make_response({'arg1': id_1, 'arg2': id_2})
     
+    @get("/hello/<name:str>/")
+    async def teste_endpoint_4(self, request: Request, name: str):
+        return make_response({'name': name}, 200)
 
-    @patch(r"^/teste/(?P<id>\d+)/sub$")
-    async def teste_endpoint_3(self, request: Request, id: str):
-        return make_response(200, {})
+    @post("/test/login/<token:str>/")
+    async def teste_endpoint_5(self, request: Request, token: str):
 
+        body = await request.get_body(None)
+        if body is None:
+            raise UnprocessableEntityError
 
-    @put(r"^/teste/(?P<id>\d+)$")
-    async def teste_endpoint_4(self, request: Request, id: str):
-        return make_response(200, {})
-
-
-    @delete(r"^/teste/(?P<id>\d+)$")
-    async def teste_endpoint_5(self, request: Request, id: str):
-        return make_response(200, {})
-
-
-"""
-class Consulta(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        data: date,
-        medico: str,
-        especialidade: Optional[str] = None,
-        local: Optional[str] = None,
-        observacoes: Optional[str] = None,
-        paciente_id: Optional[int] = None,
-        doenca_id: Optional[int] = None
-    ):
-        self.id = id
-        self.data = data
-        self.medico = medico
-        self.especialidade = especialidade
-        self.local = local
-        self.observacoes = observacoes
-        self.paciente_id = paciente_id
-        self.doenca_id = doenca_id
-
-"""
+        return make_response(
+            {
+                'token': token,
+                'user_id': body.user_id,
+                'query': request.query
+            }
+        )

@@ -5,6 +5,9 @@ asgi:
 	uv run uvicorn app:app --port 7000
 
 test:
+	touch test.db
+	rm test.db
+	touch test.db
 	uv run python -m unittest discover \
 		--start-directory tests\
 		--locals \

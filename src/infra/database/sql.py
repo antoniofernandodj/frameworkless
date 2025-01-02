@@ -8,17 +8,30 @@ from src.domain.models import (
     Consulta, Doenca, Exame, Medicamento, Paciente, Tarefa
 )
 
+def get_engine():
+    try:
+        from config import settings
+    except:
+        from src.config import settings
+    engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+    return engine
 
-DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def get_session_local():
+    engine = get_engine()
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-mapper_registry.map_imperatively(Consulta, consulta_table)
-mapper_registry.map_imperatively(Doenca, doenca_table)
-mapper_registry.map_imperatively(Exame, exame_table)
-mapper_registry.map_imperatively(Medicamento, medicamento_table)
-mapper_registry.map_imperatively(Paciente, pacientes_table)
-mapper_registry.map_imperatively(Tarefa, tarefa_table)
+def init_mappers():
+    engine = get_engine()
+    try:
+        mapper_registry.map_imperatively(Consulta, consulta_table)
+        mapper_registry.map_imperatively(Doenca, doenca_table)
+        mapper_registry.map_imperatively(Exame, exame_table)
+        mapper_registry.map_imperatively(Medicamento, medicamento_table)
+        mapper_registry.map_imperatively(Paciente, pacientes_table)
+        mapper_registry.map_imperatively(Tarefa, tarefa_table)
 
-mapper_registry.metadata.create_all(bind=engine)
+        mapper_registry.metadata.create_all(bind=engine)
+        print('Mappers initialized')
+    except Exception as error:
+        print(error)
