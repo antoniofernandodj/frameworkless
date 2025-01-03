@@ -15,7 +15,7 @@ class Test_1_App(unittest.IsolatedAsyncioTestCase):
     def setUpClass(cls):
         app = App(mode='test')
         cls.client = TestClient(app)
-        cls.data = {}
+        cls.token = ''
 
     async def test_1_app(self):
         self.assertEqual(self.client.app.mode, 'test')
@@ -93,10 +93,23 @@ class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
         cls.client = TestClient(app)
         cls.data = {}
 
-    def auth_headers(self):
+    async def auth_headers(self):
+        response = await self.client.post(
+            path='/login/',
+            headers={'content-type': 'application/json'},
+            body=dict(
+                login='teste',
+                password='senha'
+            ),
+            query_string='teste=1'
+        )
+
+        body = json.loads(response.body)
+        token = body['token']
+
         return {
             'content-type': 'application/json',
-            'Authorization': self.data['token']
+            'Authorization': token
         }
 
     async def test_1_sign_in(self):
@@ -116,24 +129,6 @@ class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
             query_string='teste=1'
         )
         self.assertEqual(response.status, 201)
-
-    async def test_2_login(self):
-        response = await self.client.post(
-            path='/login/',
-            headers={'content-type': 'application/json'},
-            body=dict(
-                login='teste',
-                password='senha'
-            ),
-            query_string='teste=1'
-        )
-
-        body = json.loads(response.body)
-        token = body['token']
-
-        self.data['token'] = token
-
-        self.assertEqual(response.status, 200)
 
     async def test_3_auth_data(self):
         response = await self.client.post(
@@ -159,53 +154,201 @@ class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
         cls.client = TestClient(app)
         cls.data = {}
 
-    def auth_headers(self):
+    async def auth_headers(self):
+        response = await self.client.post(
+            path='/login/',
+            headers={'content-type': 'application/json'},
+            body=dict(
+                login='teste',
+                password='senha'
+            ),
+            query_string='teste=1'
+        )
+
+        body = json.loads(response.body)
+        token = body['token']
+
         return {
             'content-type': 'application/json',
-            'Authorization': self.data['token']
+            'Authorization': token
         }
 
     async def test_1_cadastrar_doencas(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_2_atualizar_doenca(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_3_remover_doenca(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_4_criar_exames(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_5_marcar_exame(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_6_arquivar_resultado_de_exame(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_7_criar_consultas(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_8_marcar_consulta(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_9_arquivar_resultado_de_consulta(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_10_criar_tarefas(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_11_atualizar_tarefas(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_12_remover_tarefa(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_13_registrar_medicamentos(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_14_atualizar_medicamento(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
 
     async def test_15_remover_medicamento(self):
-        ...
+        response = await self.client.post(
+            path='',
+            headers=self.auth_headers(),
+            body=dict(
+
+            ),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
