@@ -6,7 +6,6 @@ from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, patch, delete
 )
@@ -24,10 +23,13 @@ class IdValidator(ParamsValidator):
 
 
 class TarefaController:
+
+    url_prefix: str = '/tarefas/'
+
     def __init__(self, tarefa_repository: TarefaRepository) -> None:
         self.tarefa_repository = tarefa_repository
 
-    @get("/tarefas/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_tarefa(self, request: Request):
         tarefa_id: int = request.query['id']
@@ -36,25 +38,23 @@ class TarefaController:
             raise NotFoundError('tarefa not found')
         return make_response(tarefa)
 
-    @post("/tarefas/")
-    @validate_body(TarefaFieldsValidator)
+    @post("/")
     async def create_tarefa(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(TarefaFieldsValidator)
         tarefa: Tarefa = self.tarefa_repository.create(body['description'])
         return make_response(tarefa, 201)
 
-    @put("/tarefas/<id:int>")
-    @validate_body(TarefaFieldsValidator)
+    @put("/<id:int>")
     @validate_params(IdValidator)
     async def update_tarefa(self, request: Request, id: str):
         tarefa_id = int(id)
-        body = await request.get_body()        
+        body = await request.get_body(TarefaFieldsValidator)        
         tarefa: Optional[Tarefa] = self.tarefa_repository.update(tarefa_id, body)
         if not tarefa:
             raise NotFoundError("tarefa not found")
         return make_response(tarefa)
 
-    @delete("/tarefas/<id:int>")
+    @delete("/<id:int>")
     @validate_params(IdValidator)
     async def delete_tarefa(self, request: Request, id: str):
         paciente_id = int(id)

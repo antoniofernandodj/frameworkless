@@ -6,7 +6,6 @@ from src.repository import PacienteRepository, GenericRepository
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, delete
 )
@@ -30,10 +29,12 @@ T = TypeVar('T')
 
 class PacienteController:
 
+    url_prefix: str = '/pacientes/'
+
     def __init__(self, paciente_repository: PacienteRepository) -> None:
         self.repo = paciente_repository
 
-    @get("/pacientes/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_paciente(self, request: Request):
         id: int = request.query['id']
@@ -42,17 +43,16 @@ class PacienteController:
             raise NotFoundError('Paciente não encontrado')
         return make_response(paciente)
 
-    @put("/pacientes/<id:int>")
-    @validate_body(PacienteFieldsValidator)
+    @put("/<id:int>")
     @validate_params(IdValidator)
     async def update_paciente(self, request: Request, id: int):
-        body = await request.get_body()
+        body = await request.get_body(PacienteFieldsValidator)
         paciente = self.repo.update(id, body)
         if paciente is None:
             raise NotFoundError('Paciente não encontrado')
         return make_response(paciente)
 
-    @delete("/pacientes/<id:int>")
+    @delete("/<id:int>")
     @validate_params(IdValidator)
     async def delete_paciente(self, request: Request, id: int):
         success = self.repo.delete(id)

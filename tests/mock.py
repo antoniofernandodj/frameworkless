@@ -82,6 +82,9 @@ class TestClient:
     async def post(self, path, body=None, query_string='', headers=None):
         return await self.__mock_request(path, 'POST', body, query_string, headers)
 
+    async def patch(self, path, body=None, query_string='', headers=None):
+        return await self.__mock_request(path, 'PATCH', body, query_string, headers)
+
     async def put(self, path, body=None, query_string='', headers=None):
         return await self.__mock_request(path, 'PUT', body, query_string, headers)
 

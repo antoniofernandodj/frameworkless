@@ -10,7 +10,7 @@ pacientes_table = Table(
     Column("_id", Integer, primary_key=True),
     Column("nome", String(255), nullable=False),
     Column("login", String(255), nullable=False, unique=True),
-    Column("senha", Text, nullable=False),
+    Column("password", Text, nullable=False),
     Column("data_nascimento", Date, nullable=False),
     Column("sexo", String(10), nullable=False),
     Column("contato", String(255), nullable=True),

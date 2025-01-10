@@ -3,7 +3,9 @@ from typing import Any, Dict, Optional, Union
 
 
 def date_converter(value: Union[date, datetime]):
-    return value.isoformat()
+    result = value.isoformat()
+    print('converter_result:', result)
+    return result
 
 
 class DomainModel:
@@ -25,9 +27,19 @@ class DomainModel:
             raise AttributeError
 
         return self._id
+    
+    @id.setter
+    def id(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError
+        self._id = value
+
 
     def to_dict(self) -> dict:
-        result: Dict[str, Any] = {'id': self._id}
+        result: Dict[str, Any] = {}
+        if self._id:
+            result['id'] = self._id
+
         for key in vars(self):
             value = getattr(self, key)
 
@@ -53,7 +65,7 @@ class DomainModel:
         attributes = ", ".join(
             f"{key}={repr(value)}"
             for key, value in self.to_dict().items()
-            if not key.startswith('_')
+            if key != '_sa_instance_state'
         )
 
         return f"{self.__class__.__name__}({attributes})"

@@ -20,7 +20,7 @@ class TestRepos(unittest.TestCase):
     async def test_repos(self):
 
         paciente0 = self.repo.create(
-            Paciente('antonio', 'login', 'senha', date(1, 2, 3), 'M')
+            Paciente('antonio', 'login', 'password', date(1, 2, 3), 'M')
         )
         print(paciente0)
         paciente1 = self.repo.get_by_id(1)

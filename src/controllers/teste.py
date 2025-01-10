@@ -7,7 +7,6 @@ from src.domain.services.consulta import ConsultaService
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, patch, delete
 )
@@ -15,16 +14,18 @@ from src.utils import (
 
 class TesteController:
 
-    @get("/teste/")
+    url_prefix = "/teste/"
+
+    @get("/")
     async def teste_endpoint_1(self, request: Request):
         consulta = Consulta(date(1,2,3), True, 'medico')
         return make_response(consulta)
 
-    @get("/teste/<id:int>/")
+    @get("/<id:int>/")
     async def teste_endpoint_2(self, request: Request, id: int):
         return make_response({'id': id})
 
-    @get("/teste/<id_1:int>/teste/<id_2:int>/")
+    @get("/<id_1:int>/teste/<id_2:int>/")
     async def teste_endpoint_3(self, request: Request, id_1: int, id_2: int):
         return make_response({'arg1': id_1, 'arg2': id_2})
     
@@ -32,7 +33,7 @@ class TesteController:
     async def teste_endpoint_4(self, request: Request, name: str):
         return make_response({'name': name}, 200)
 
-    @post("/test/login/<token:str>/")
+    @post("/login/<token:str>/")
     async def teste_endpoint_5(self, request: Request, token: str):
         body = await request.get_body()
         return make_response(

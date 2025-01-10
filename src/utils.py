@@ -1,20 +1,28 @@
 from __future__ import annotations
 
-from typing import TypeVar
+import json
+from typing import TYPE_CHECKING, TypeVar
 from asyncio import iscoroutinefunction
 from contextlib import suppress
 from copy import deepcopy
 import re
+from src import _types as t
 from typing import Any, Dict, Literal, Optional, Tuple, Type, get_type_hints, get_args, Annotated
 from functools import wraps
 from typing import Callable, Coroutine, Dict, Any, List, Type, Union
 from urllib.parse import parse_qs
 from src.domain.models._base import DomainModel
 from src.exceptions.http import UnprocessableEntityError
-from src.models import Response
+from src.models import DotDict, Response
+if TYPE_CHECKING:
+    from granian.rsgi import Scope as GranianScope
+    from granian._granian import RSGIHTTPProtocol
 
 
 T = TypeVar('T')
+
+
+ENDPOINT_DATA = 'ENDPOINT_DATA'
 
 
 def make_response(*args) -> Response:
@@ -59,32 +67,12 @@ def validate_params(params_validator: Type[ParamsValidator]) -> Callable:
         async def wrapper(
             self,
             params: Dict[str, Any],
-            body: Union[List[Any], Dict[str, Any], Coroutine]
+            *args,
+            **kwargs
         ) -> Dict[str, Any]:
 
             params = params_validator.validate(params)
-            return await func(self, params, body)
-
-        return wrapper
-    return decorator
-
-
-def validate_body(params_validator: Type[ParamsValidator]) -> Callable:
-
-    def decorator(func: Callable) -> Callable:
-
-        @wraps(func)
-        async def wrapper(
-            self,
-            params: Dict[str, Any],
-            body: Union[List[Any], Dict[str, Any], Coroutine]
-        ) -> Dict[str, Any]:
-
-            if not isinstance(body, dict):
-                raise UnprocessableEntityError('Must be a dict')
-
-            body = params_validator.validate(body)
-            return await func(self, params, body)
+            return await func(self, params, *args, **kwargs)
 
         return wrapper
     return decorator
@@ -323,87 +311,113 @@ class Route:
         return result
 
 
-def get(pattern: str):
+def route(method: str, pattern: str):
     def decorator(func: Callable):
-
-        func.CONTROLLER_DATA = {
-            'method': 'GET', 'pattern': pattern
-        }
+        setattr(func, ENDPOINT_DATA, {'method': method, 'pattern': pattern})
 
         @wraps(func)
         async def inner(self, *args, **kwargs):
             if iscoroutinefunction(func):
                 return await func(self, *args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
-        
+            return func(self, *args, **kwargs)
+
         return inner
     return decorator
+
+def get(pattern: str):
+    return route('GET', pattern)
 
 def post(pattern: str):
-    def decorator(func: Callable):
-
-        func.CONTROLLER_DATA = {
-            'method': 'POST', 'pattern': pattern
-        }
-
-        @wraps(func)
-        async def inner(self, *args, **kwargs):
-            if iscoroutinefunction(func):
-                return await func(self, *args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
-        
-        return inner
-    return decorator
-
-def patch(pattern: str):
-    def decorator(func: Callable):
-
-        func.CONTROLLER_DATA = {
-            'method': 'PATCH', 'pattern': pattern
-        }
-
-        @wraps(func)
-        async def inner(self, *args, **kwargs):
-            if iscoroutinefunction(func):
-                return await func(self, *args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
-        
-        return inner
-    return decorator
+    return route('POST', pattern)
 
 def put(pattern: str):
-    def decorator(func: Callable):
+    return route('PUT', pattern)
 
-        func.CONTROLLER_DATA = {
-            'method': 'PUT', 'pattern': pattern
-        }
-
-        @wraps(func)
-        async def inner(self, *args, **kwargs):
-            if iscoroutinefunction(func):
-                return await func(self, *args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
-        
-        return inner
-    return decorator
+def patch(pattern: str):
+    return route('PATCH', pattern)
 
 def delete(pattern: str):
-    def decorator(func: Callable):
+    return route('DELETE', pattern)
 
-        func.CONTROLLER_DATA = {
-            'method': 'DELETE', 'pattern': pattern
-        }
 
-        @wraps(func)
-        async def inner(self, *args, **kwargs):
-            if iscoroutinefunction(func):
-                return await func(self, *args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
+class ProtocolParser:
+
+    @classmethod
+    async def asgi_parse_body(
+        cls,
+        receive: t.Receive
+    ) -> Optional[DotDict]:
+
+        body_bytes = b""
+        try:
+            while True:
+                message = await receive()
+                with open('teste', 'w') as f:
+                    f.write(str(message))
+                if message["type"] == "http.request":
+                    body_bytes += message.get("body", b"")
+                    if not message.get("more_body", False):
+                        break
+        except Exception as e:
+            raise UnprocessableEntityError(detail=str(e))
+        body_bytes = b"" if body_bytes == b"null" else b""
+        if not body_bytes:
+            return None
+
+        try:
+            body = json.loads(body_bytes.decode('utf-8'))
+            body = DotDict(body)
+        except json.JSONDecodeError:
+            raise UnprocessableEntityError
+
+        return body
+
+    @classmethod
+    async def rsgi_parse_body(
+        cls,
+        protocol: 'RSGIHTTPProtocol'
+    ) -> Optional[DotDict]:
+
+        body_bytes: bytes = await protocol()
+        if not body_bytes:
+            return None
+        body_bytes = b'' if body_bytes == b'null' else body_bytes
+        if not body_bytes:
+            return None
+
+        body_string = body_bytes.decode('utf-8')
+        try:
+            body = json.loads(body_string)
+            body = DotDict(body)
+        except json.JSONDecodeError:
+            raise UnprocessableEntityError
         
-        return inner
-    return decorator
+        return body
+
+    @classmethod
+    def make_get_body_callback(cls, scope, receive_or_protocol):
+        async def get_body(validator: Optional[Type[ParamsValidator]] = None):
+
+            if is_rsgi_app(scope):
+                request_body = await ProtocolParser.rsgi_parse_body(
+                    receive_or_protocol
+                )
+            else:
+                request_body = await ProtocolParser.asgi_parse_body(
+                    receive_or_protocol
+                )
+
+            if validator is None:
+                return request_body
+
+            if validator is None and not request_body:
+                return None
+
+            if not isinstance(request_body, DotDict):
+                raise UnprocessableEntityError('Tipo de body incorreto')
+
+            request_body = validator.validate(request_body)
+            return request_body
+        
+
+        return get_body

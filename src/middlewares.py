@@ -8,7 +8,7 @@ import time
 import traceback
 from typing import Any, Dict, List, Tuple
 from granian._granian import RSGIHTTPProtocol
-from src import ASGI_RSGI_APP
+from src import BaseApp
 from src.exceptions.http import HTTPException, InternalServerError
 from src.utils import assure_tuples_of_bytes, assure_tuples_of_str, get_protocol_args, headers_to_response, is_rsgi_app
 
@@ -16,7 +16,7 @@ from src.utils import assure_tuples_of_bytes, assure_tuples_of_str, get_protocol
 LOG_STACK_TRACE = True
 
 
-class RequestLoggingMiddleware(ASGI_RSGI_APP):
+class RequestLoggingMiddleware(BaseApp):
     def __init__(self, app):
         self.app = app
         self.logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class RequestLoggingMiddleware(ASGI_RSGI_APP):
         self.logger.info(f"Request {mode} processed in {duration:.4f} seconds from {client}")
 
 
-class AuthenticationMiddleware(ASGI_RSGI_APP):
+class AuthenticationMiddleware(BaseApp):
     def __init__(self, app):
         self.app = app
         self.last = True
@@ -90,7 +90,7 @@ class AuthenticationMiddleware(ASGI_RSGI_APP):
         return token == b"valid-token"
     
 
-class HandleErrorMiddleware(ASGI_RSGI_APP):
+class HandleErrorMiddleware(BaseApp):
     def __init__(self, app):
         self.app = app
         self.last = True
@@ -157,9 +157,9 @@ class HandleErrorMiddleware(ASGI_RSGI_APP):
             )
 
 
-class CORSMiddleware2(ASGI_RSGI_APP):
+class CORSMiddleware2(BaseApp):
 
-    def __init__(self, app: ASGI_RSGI_APP, whitelist=[]):
+    def __init__(self, app: BaseApp, whitelist=[]):
         self.app = app
         self.whitelist = whitelist
         self.last = True

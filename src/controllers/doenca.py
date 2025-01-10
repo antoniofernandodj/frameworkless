@@ -6,28 +6,30 @@ from src.repository import DoencaRepository
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, delete
 )
 
 
 class DoencaFieldsValidator(ParamsValidator):
-    nome: Annotated[str, "Invalid doenca payload"]
-    descricao: Annotated[str, "Invalid doenca payload"]
-    cid: Annotated[str, "Invalid doenca payload"]
-    paciente_id: Annotated[str, "Invalid doenca payload"]
+    nome: Annotated[str, "`nome` required"]
+    descricao: Annotated[str, "`descricao` required"]
+    codigo_cid: Annotated[str, "`codigo_cid` required"]
+    paciente_id: Annotated[str, "`paciente_id` required"]
 
 
 class IdValidator(ParamsValidator):
-    id: Annotated[int, "Id is required"]
+    id: Annotated[int, "`id` is required"]
 
 
 class DoencaController:
+
+    url_prefix: str = '/doencas/'
+
     def __init__(self, doenca_repository: DoencaRepository) -> None:
         self.doenca_repository = doenca_repository
 
-    @get("/doencas/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_doenca(self, request: Request):
         doenca_id: int = request.query['id']
@@ -36,26 +38,23 @@ class DoencaController:
             raise NotFoundError('Doença not found')
         return make_response(doenca)
 
-    @post("/doencas/")
-    @validate_body(DoencaFieldsValidator)
+    @post("/")
     async def create_doenca(self, request: Request):
-        body = await request.get_body()
-        doenca: Doenca = self.doenca_repository.create(body['name'])
+        body = await request.get_body(DoencaFieldsValidator)
+        doenca = Doenca(**body)
+        doenca: Doenca = self.doenca_repository.create(doenca)
         return make_response(doenca, 201)
 
-    @put("/doencas/<id:int>")
-    @validate_body(DoencaFieldsValidator)
-    @validate_params(IdValidator)
+    @put("/<id:int>")
     async def update_doenca(self, request: Request, id: str):
         doenca_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(DoencaFieldsValidator)
         doenca: Optional[Doenca] = self.doenca_repository.update(doenca_id, body)
         if not doenca:
             raise NotFoundError('Doença not found')
         return make_response(doenca)
 
-    @delete("/doencas/<id:int>")
-    @validate_params(IdValidator)
+    @delete("/<id:int>")
     async def delete_doenca(self, request: Request, id: str):
         doenca_id = int(id)
         success: bool = self.doenca_repository.delete(doenca_id)

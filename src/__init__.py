@@ -7,6 +7,7 @@ import inspect
 import logging
 import json
 from src import _types as t
+from typing import TYPE_CHECKING
 
 try:
     from config import settings
@@ -27,11 +28,11 @@ from src.routers import (
 )
 
 from src.exceptions.http import NotFoundError, UnprocessableEntityError
-from src.utils import ParamsValidator, assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
+from src.utils import ParamsValidator, ProtocolParser, assure_tuples_of_str, parse_query_string, is_rsgi_app, headers_to_response
 from src.models import Response
 
 
-with suppress(Exception):
+if TYPE_CHECKING:
     from granian.rsgi import Scope as GranianScope
     from granian._granian import RSGIHTTPProtocol
 
@@ -39,11 +40,11 @@ with suppress(Exception):
 logging.basicConfig(level=logging.INFO)
 
 
-class ASGI_RSGI_APP(ABC):
+class BaseApp(ABC):
 
     last: bool
-    app: ASGI_RSGI_APP
-    parent: Optional[ASGI_RSGI_APP]
+    app: BaseApp
+    parent: Optional[BaseApp]
 
     def __init__(self, *args) -> None:
         raise NotImplementedError
@@ -129,7 +130,7 @@ class ASGI_RSGI_APP(ABC):
             print(f"params: {params}")
             return
     
-    def add_middleware(self, middleware: Type[ASGI_RSGI_APP], params=None) -> ASGI_RSGI_APP:
+    def add_middleware(self, middleware: Type[BaseApp], params=None) -> BaseApp:
 
         self.last = True
         if params:
@@ -156,7 +157,7 @@ class ASGI_RSGI_APP(ABC):
         await self.exec(scope, protocol)
 
 
-class App(ASGI_RSGI_APP):
+class App(BaseApp):
     def __init__(self, mode: str = 'dev'):
 
         print(f'Running in mode: {mode}')
@@ -177,8 +178,8 @@ class App(ASGI_RSGI_APP):
 
         self.routers = (
             # ConsultaRouter(session),
-            # DoencaRouter(session),
-            # ExameRouter(session),
+            DoencaRouter(session),
+            ExameRouter(session),
             # MedicamentoRouter(session),
             # TarefaRouter(session),
             # PacienteRouter(session),
@@ -188,21 +189,7 @@ class App(ASGI_RSGI_APP):
 
     async def __rsgi__(self, scope: 'GranianScope', protocol: 'RSGIHTTPProtocol'):
 
-        async def get_body(validator: Optional[Type[ParamsValidator]] = None):
-            request_body = await self.rsgi_parse_body(protocol)
-
-            if validator is None:
-                return request_body
-
-            if validator is None and not request_body:
-                return None
-
-            if not isinstance(request_body, DotDict):
-                raise UnprocessableEntityError('Tipo de body incorreto')
-
-            request_body = validator.validate(request_body)
-            return request_body
-
+        get_body = ProtocolParser.make_get_body_callback(scope, protocol)
         response = await self.dispatch_request(
             scope.query_string,
             scope.path,
@@ -224,33 +211,16 @@ class App(ASGI_RSGI_APP):
         if scope['type'] == 'lifespan':
             return
         
-        async def get_body(validator: Optional[Type[ParamsValidator]] = None):
-            request_body = await self.asgi_parse_body(receive)
-            if validator is None:
-                return request_body
-
-            if validator is None and not request_body:
-                return None
-
-            if not isinstance(request_body, DotDict):
-                raise UnprocessableEntityError('Tipo de body incorreto')
-
-            request_body = validator.validate(request_body)
-            return request_body
-        
-        headers = {
-            key.decode('utf-8'): item.decode('utf-8')
-            for key, item in dict(scope['headers']).items()
-        }
-
+        get_body = ProtocolParser.make_get_body_callback(scope, receive)
         response = await self.dispatch_request(
             scope['query_string'].decode('utf-8'),
             scope['path'],
             scope['method'],
-            get_body,
-            headers
+            get_body,   {
+                key.decode('utf-8'): item.decode('utf-8')
+                for key, item in dict(scope['headers']).items()
+            }
         )
-        scope['status'] = response.status
 
         await self.send_response(
             scope,
@@ -296,49 +266,3 @@ class App(ASGI_RSGI_APP):
             response = endpoint_handler(request, **path_args)
 
         return response
-
-    async def asgi_parse_body(
-        self,
-        receive: t.Receive
-    ) -> Optional[DotDict]:
-
-        body_bytes = b""
-        try:
-            while True:
-                message = await receive()
-                if message["type"] == "http.request":
-                    body_bytes += message.get("body", b"")
-                    if not message.get("more_body", False):
-                        break
-        except Exception:
-            raise UnprocessableEntityError
-        
-        if not body_bytes:
-            return None
-
-        try:
-            body = json.loads(body_bytes.decode('utf-8'))
-            body = DotDict(body)
-        except json.JSONDecodeError:
-            raise UnprocessableEntityError
-
-        return body
-
-    async def rsgi_parse_body(
-        self,
-        protocol: 'RSGIHTTPProtocol'
-    ) -> Optional[DotDict]:
-
-        body_bytes: bytes = await protocol()
-        if not body_bytes:
-            return None
-        
-        body_string = body_bytes.decode('utf-8')
-
-        try:
-            body = json.loads(body_string)
-            body = DotDict(body)
-        except json.JSONDecodeError:
-            raise UnprocessableEntityError
-        
-        return body

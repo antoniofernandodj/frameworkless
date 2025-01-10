@@ -6,7 +6,6 @@ from src.repository import MedicamentoRepository
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, delete
 )
@@ -28,10 +27,13 @@ class IdValidator(ParamsValidator):
 
 
 class MedicamentoController:
+
+    url_prefix: str = '/medicamentos/'
+
     def __init__(self, medicamento_repository: MedicamentoRepository) -> None:
         self.medicamento_repository = medicamento_repository
 
-    @get("/medicamentos/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_medicamento(self, request: Request):
         medicamento_id: int = request.query['id']
@@ -40,25 +42,23 @@ class MedicamentoController:
             raise NotFoundError('medicamento not found')
         return make_response(medicamento)
 
-    @post("/medicamentos/")
-    @validate_body(MedicamentoFieldsValidator)
+    @post("/")
     async def create_medicamento(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(MedicamentoFieldsValidator)
         medicamento: Medicamento = self.medicamento_repository.create(body['name'])
         return make_response(medicamento, 201)
 
-    @put("/medicamentos/<id:int>")
-    @validate_body(MedicamentoFieldsValidator)
+    @put("/<id:int>")
     @validate_params(IdValidator)
     async def update_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(MedicamentoFieldsValidator)
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
             raise NotFoundError("medicamento not found")
         return make_response(medicamento)
 
-    @delete("/medicamentos/<id:int>")
+    @delete("/<id:int>")
     @validate_params(IdValidator)
     async def delete_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)

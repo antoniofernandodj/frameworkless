@@ -3,7 +3,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from src.exceptions.http import MethodNotAllowedError
-from src.utils import Route, make_response
+from src.utils import ENDPOINT_DATA, Route, make_response
 
 
 MatchResult = Tuple[
@@ -43,32 +43,36 @@ class BaseRouter(ABC):
 
         return None, None
 
-    def register_endpoint(self, func):
-        controller_data = func.CONTROLLER_DATA
-        method = controller_data['method']
-        pattern = controller_data['pattern']
+    def register_endpoint(self, func, controller):
+        url_prefix = str(getattr(controller, 'url_prefix', None) or '').rstrip('/')
+        endpoint_data = getattr(func, ENDPOINT_DATA)
+        method = endpoint_data['method']
+        endpoint_pattern = endpoint_data['pattern']
 
         if not getattr(self, 'routes', None):
             self.routes = []
 
-
-        r = Route(pattern, method)
+        r = Route(url_prefix + endpoint_pattern, method)
+        print(r)
         self.routes.append({'method': method, 'route': r, 'controller': func})
-        return controller_data
+        return endpoint_data
 
-    def register_endpoints(self, endpoints: Union[tuple, list]):
+    def register_endpoints(self, endpoints: Union[tuple, list], controller):
         for endpoint in endpoints:
-            self.register_endpoint(endpoint)
+            self.register_endpoint(endpoint, controller)
 
     def register_controller(self, controller: Any):
         methods = []
         for attr in dir(controller):
-            if callable(getattr(controller, attr)) and not attr.startswith("_"):
-                method = getattr(controller, attr)
-                if getattr(method, 'CONTROLLER_DATA', None):
-                    methods.append(method)
+            if attr.startswith("_"):
+                continue
+            method = getattr(controller, attr, None)
+            if not callable(method):
+                continue
+            if getattr(method, ENDPOINT_DATA, None):
+                methods.append(method)
 
-        self.register_endpoints(methods)
+        self.register_endpoints(methods, controller)
 
     def __get_options_handler(self, allowed_methods):
         async def endpoint_handler(*args, **kwargs):

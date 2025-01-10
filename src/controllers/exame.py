@@ -1,3 +1,4 @@
+from datetime import date
 from src.exceptions.http import NotFoundError, UnprocessableEntityError
 from src.models import Request
 from typing import Annotated, Any, Dict, Optional
@@ -6,18 +7,17 @@ from src.repository import ExameRepository
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, patch, delete
 )
 
 
 class ExameFieldsValidator(ParamsValidator):
-    tipo: Annotated[str, "Invalid exame payload"]
-    data: Annotated[str, "Invalid exame payload"]
-    laboratorio: Annotated[str, "Invalid exame payload"]
-    consulta: Annotated[str, "Invalid exame payload"]
-    paciente: Annotated[str, "Invalid exame payload"]
+    tipo: Annotated[str, "`tipo` required"]
+    data: Annotated[str, "`data` required"]
+    laboratorio: Annotated[str, "`laboratorio` required"]
+    # consulta: Annotated[str, "`consulta` required"]
+    paciente_id: Annotated[str, "`paciente_id` required"]
 
 
 class IdValidator(ParamsValidator):
@@ -25,10 +25,13 @@ class IdValidator(ParamsValidator):
 
 
 class ExameController:
+
+    url_prefix: str = '/exames/'
+
     def __init__(self, exame_repository: ExameRepository) -> None:
         self.exame_repository = exame_repository
 
-    @get("/exames/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_exame(self, request: Request):
         exame_id: int = request.query['id']
@@ -37,35 +40,38 @@ class ExameController:
             raise NotFoundError('Exame not found')
         return make_response(exame)
 
-    @post("/exames/")
-    @validate_body(ExameFieldsValidator)
+    @post("/")
     async def create_exame(self, request: Request):
-        body = await request.get_body()
-        exame: Exame = self.exame_repository.create(body['type'])
+        body = await request.get_body(ExameFieldsValidator)
+        body['data'] = date.fromisoformat(body.pop('data'))
+        exame = Exame(**body)
+        exame: Exame = self.exame_repository.create(exame)
         return make_response(exame, 201)
 
-    @patch("/exames/<id:int>/marcar")
-    @validate_params(IdValidator)
+    @patch("/<id:int>/marcar")
     async def marcar_exame(self, request: Request, id: str):
         exame_id = int(id)
-        exame = self.exame_repository.update(exame_id, {'marcado': True})
+        body = await request.get_body()
+        if body and body.get('marcar'):
+            exame = self.exame_repository.update(exame_id, {
+                'marcado': body['marcar']
+            })
+        else:
+            exame = self.exame_repository.update(exame_id, {'marcado': True})
         if exame is None:
             raise NotFoundError('Exame not found')
         return make_response(exame)
 
-    @put("/exames/<id:int>")
-    @validate_body(ExameFieldsValidator)
-    @validate_params(IdValidator)
+    @put("/<id:int>")
     async def update_exame(self, request: Request, id: str):
         exame_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(ExameFieldsValidator)
         exame: Optional[Exame] = self.exame_repository.update(exame_id, body)
         if not exame:
             raise NotFoundError("Exame not found")
         return make_response(exame)
 
-    @delete("/exames/<id:int>")
-    @validate_params(IdValidator)
+    @delete("/<id:int>")
     async def delete_exame(self, request: Request, id: str):
         exame_id = int(id)
         success: bool = self.exame_repository.delete(exame_id)

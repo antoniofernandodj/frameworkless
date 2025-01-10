@@ -6,7 +6,6 @@ from src.exceptions.http import InternalServerError, NotFoundError, Unprocessabl
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, patch, delete
 )
@@ -27,10 +26,13 @@ class IdValidator(ParamsValidator):
 
 
 class ConsultaController:
+
+    url_prefix: str = '/consultas/'
+
     def __init__(self, consulta_repository: ConsultaRepository) -> None:
         self.consulta_repository = consulta_repository
 
-    @get("/consultas/")
+    @get("/")
     @validate_params(IdValidator)
     async def get_consulta(self, request: Request):
         consulta_id: int = request.query['id']
@@ -39,15 +41,14 @@ class ConsultaController:
             raise NotFoundError('Consulta not found')
         return make_response(consulta)
 
-    @post("/consultas/")    
-    @validate_body(ConsultaFieldsValidator)
+    @post("/")    
     async def create_consulta(self, request: Request):
-        body = await request.get_body()
+        body = await request.get_body(ConsultaFieldsValidator)
         consulta = Consulta(**body)  # type: ignore
         consulta: Consulta = self.consulta_repository.create(consulta)
         return make_response(consulta, 201)
     
-    @patch("/consultas/<id:int>/marcar")
+    @patch("/<id:int>/marcar")
     @validate_params(IdValidator)
     async def marcar_consulta(self, request: Request, id: int):
         consulta_id = int(id)
@@ -56,18 +57,17 @@ class ConsultaController:
             raise NotFoundError('Consulta not found')
         return make_response(consulta)
 
-    @put("/consultas/<id:int>")
-    @validate_body(ConsultaFieldsValidator)
+    @put("/<id:int>")
     @validate_params(IdValidator)
     async def update_consulta(self, request: Request, id: int):
         consulta_id = int(id)
-        body = await request.get_body()
+        body = await request.get_body(ConsultaFieldsValidator)
         consulta: Optional[Consulta] = self.consulta_repository.update(consulta_id, body)
         if not consulta:
             raise NotFoundError("Consulta not found")
         return make_response(consulta)
 
-    @delete("/consultas/<id:int>")
+    @delete("/<id:int>")
     @validate_params(IdValidator)
     async def delete_consulta(self, request: Request, id: int):
         consulta_id = int(id)

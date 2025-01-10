@@ -18,7 +18,7 @@ class AuthService:
 
     def login(self, login: str, password: str) -> Dict[str, Any]:
         paciente = self.repo.get_by(login=login)
-        if paciente is None or not HashService.check_hash(password, paciente.senha):
+        if paciente is None or not HashService.check_hash(password, paciente.password):
             raise NotFoundError('Credenciais inválidas!')
 
         token = JWTService.generate({'user_id': paciente.id})
@@ -49,7 +49,7 @@ class AuthService:
             endereco=endereco,
             responsavel=responsavel,
             login=login,
-            senha=HashService.generate_hash(password)
+            password=HashService.generate_hash(password)
         )
 
         result = self.repo.create(paciente)

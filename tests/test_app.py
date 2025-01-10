@@ -4,9 +4,32 @@ from secrets import token_urlsafe
 import unittest
 
 
+from src.domain.models import (
+    Doenca,
+    Paciente,
+    Exame,
+    Consulta,
+    Tarefa,
+    Medicamento
+)
+
 from tests.mock import TestClient
 from src import App
 
+
+PACIENTE_DATA = dict(
+    nome='teste',
+    login='teste',
+    password='password',
+    data_nascimento=date(1, 1, 1),
+    sexo='M',
+    contato=None,
+    endereco=None,
+    responsavel=None,
+)
+
+def get_paciente():
+    return Paciente(**PACIENTE_DATA)  # type: ignore
 
 
 class Test_1_App(unittest.IsolatedAsyncioTestCase):
@@ -55,7 +78,7 @@ class Test_1_App(unittest.IsolatedAsyncioTestCase):
 
     async def test_6_controller_4(self):
         response = await self.client.get(
-            path='/hello/antonio/',
+            path='/teste/hello/antonio/',
             headers={'content-type': 'application/json'},
             body=None,
             query_string='key1=value1&key2=value2'
@@ -66,7 +89,7 @@ class Test_1_App(unittest.IsolatedAsyncioTestCase):
     async def test_7_controller_5(self):
         token = token_urlsafe(10)
         response = await self.client.post(
-            path=f'/test/login/{token}/',
+            path=f'/teste/login/{token}/',
             headers={'content-type': 'application/json'},
             body=dict(user_id=10),
             query_string='key1=value1&key2=value2'
@@ -95,11 +118,11 @@ class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
 
     async def auth_headers(self):
         response = await self.client.post(
-            path='/login/',
+            path='/auth/login/',
             headers={'content-type': 'application/json'},
             body=dict(
                 login='teste',
-                password='senha'
+                password='password'
             ),
             query_string='teste=1'
         )
@@ -114,29 +137,23 @@ class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
 
     async def test_1_sign_in(self):
         response = await self.client.post(
-            path='/signin/',
+            path='/auth/signin/',
             headers={'content-type': 'application/json'},
-            body=dict(
-                nome='teste',
-                login='teste',
-                password='senha',
-                data_nascimento=date(1, 1, 1).isoformat(),
-                sexo='M',
-                contato=None,
-                endereco=None,
-                responsavel=None,
-            ),
+            body=get_paciente().to_dict(),
             query_string='teste=1'
         )
+
+        body = json.loads(response.body)
+        PACIENTE_DATA['_id'] = body['id']
         self.assertEqual(response.status, 201)
 
     async def test_3_auth_data(self):
         response = await self.client.post(
-            path='/login/',
-            headers=self.auth_headers(),
+            path='/auth/login/',
+            headers=await self.auth_headers(),
             body=dict(
                 login='teste',
-                password='senha'
+                password='password'
             ),
             query_string='teste=1'
         )
@@ -156,11 +173,11 @@ class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
 
     async def auth_headers(self):
         response = await self.client.post(
-            path='/login/',
+            path='/auth/login/',
             headers={'content-type': 'application/json'},
             body=dict(
                 login='teste',
-                password='senha'
+                password='password'
             ),
             query_string='teste=1'
         )
@@ -174,181 +191,230 @@ class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
         }
 
     async def test_1_cadastrar_doencas(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
 
-            ),
+        p = get_paciente()
+        doenca = Doenca(
+            nome='gripe',
+            descricao='gripe',
+            codigo_cid='1',
+            paciente_id=p.id
+        )
+
+        response = await self.client.post(
+            path='/doencas/',
+            headers=await self.auth_headers(),
+            body=doenca.to_dict(),
             query_string=''
         )
 
         body = json.loads(response.body)
+        self.assertEquals(response.status, 201)
+        self.assertIsNotNone(body)
+
+        body['_id'] = body.pop('id')
+        self.data['doenca'] = Doenca(**body)
 
     async def test_2_atualizar_doenca(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+        self.data['doenca'].nome = 'resfriado'
 
-            ),
+        response = await self.client.put(
+            path=f'/doencas/{self.data["doenca"].id}',
+            headers=await self.auth_headers(),
+            body=self.data['doenca'].to_dict(),
             query_string=''
         )
 
         body = json.loads(response.body)
+        body['_id'] = body.pop('id')
+        d = Doenca(**body)
+
+        self.assertEquals(response.status, 200)
+        self.assertEquals(d.nome, self.data['doenca'].nome)
 
     async def test_3_remover_doenca(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
-
-            ),
+        response = await self.client.delete(
+            path=f'/doencas/{self.data["doenca"].id}',
+            headers=await self.auth_headers(),
+            body=self.data['doenca'].to_dict(),
             query_string=''
         )
 
         body = json.loads(response.body)
+        self.assertEquals(response.status, 204)
+        self.assertEquals(body, None)
+        self.data.pop('doenca')
 
     async def test_4_criar_exames(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+        p = get_paciente()
 
-            ),
+        exame = Exame(
+            tipo="Raio-X",
+            data=date.today(),
+            marcado=True,
+            resultado=None,
+            laboratorio="Laboratório Central",
+            consulta_id=None,
+            paciente_id=p.id
+        )
+
+        response = await self.client.post(
+            path='/exames/',
+            headers=await self.auth_headers(),
+            body=exame.to_dict(),
             query_string=''
         )
 
         body = json.loads(response.body)
+        self.assertEqual(response.status, 201)
+
+        body['_id'] = body.pop('id')
+        self.data['exame'] = Exame(**body)
 
     async def test_5_marcar_exame(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
 
-            ),
+        exame = self.data['exame']
+
+        response = await self.client.patch(
+            path=f'/exames/{exame.id}/marcar',
+            headers=await self.auth_headers(),
+            body=None,
             query_string=''
         )
 
         body = json.loads(response.body)
+        body['_id'] = body.pop('id')
+        exame = Exame(**body)
+        self.assertEquals(response.status, 200)
+        self.assertEquals(exame.marcado, True)
 
-    async def test_6_arquivar_resultado_de_exame(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+        self.data['exame'] = Exame(**body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_6_arquivar_resultado_de_exame(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_7_criar_consultas(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_7_criar_consultas(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_8_marcar_consulta(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_8_marcar_consulta(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_9_arquivar_resultado_de_consulta(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_9_arquivar_resultado_de_consulta(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_10_criar_tarefas(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_10_criar_tarefas(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_11_atualizar_tarefas(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_11_atualizar_tarefas(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_12_remover_tarefa(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_12_remover_tarefa(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_13_registrar_medicamentos(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_13_registrar_medicamentos(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_14_atualizar_medicamento(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_14_atualizar_medicamento(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
 
-    async def test_15_remover_medicamento(self):
-        response = await self.client.post(
-            path='',
-            headers=self.auth_headers(),
-            body=dict(
+    #     body = json.loads(response.body)
 
-            ),
-            query_string=''
-        )
+    # TODO
+    # async def test_15_remover_medicamento(self):
+    #     response = await self.client.post(
+    #         path='',
+    #         headers=await self.auth_headers(),
+    #         body=dict(
 
-        body = json.loads(response.body)
+    #         ),
+    #         query_string=''
+    #     )
+
+    #     body = json.loads(response.body)

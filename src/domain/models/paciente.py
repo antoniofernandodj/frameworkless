@@ -8,7 +8,7 @@ class Paciente(DomainModel):
         self,
         nome: str,
         login: str,
-        senha: str,
+        password: str,
         data_nascimento: date,
         sexo: str,
         contato: Optional[str] = None,
@@ -19,7 +19,7 @@ class Paciente(DomainModel):
         self._id = _id
         self.nome = nome
         self.login = login
-        self.senha = senha
+        self.password = password
         self.data_nascimento = data_nascimento
         self.sexo = sexo
         self.contato = contato
@@ -28,6 +28,6 @@ class Paciente(DomainModel):
 
     def to_response(self):
         paciente_dict = self.to_dict()
-        paciente_dict.pop('senha', None)
+        paciente_dict.pop('password', None)
         return paciente_dict
 

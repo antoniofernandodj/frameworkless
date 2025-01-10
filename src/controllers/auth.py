@@ -10,7 +10,6 @@ from src.security import HashService
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_body,
     validate_params,
     get, post, put, delete
 )
@@ -20,7 +19,7 @@ T = TypeVar('T')
 
 
 class SignInValidator(ParamsValidator):
-    nome: Annotated[str, 'Nome requeridi']
+    nome: Annotated[str, 'Nome requerido']
     login: Annotated[str, 'Login requerido']
     password: Annotated[str, 'Password requerido']
     data_nascimento: Annotated[str, 'Data de nascimento requerido']
@@ -36,6 +35,8 @@ class LoginInValidator(ParamsValidator):
 
 
 class AuthController:
+
+    url_prefix: str = '/auth/'
 
     def __init__(self, auth_service: AuthService) -> None:
         self.service = auth_service
@@ -61,7 +62,7 @@ class AuthController:
         )
         return make_response(response, 201)
 
-    @post("/auth/data")
+    @post("/data")
     @auth_required
     async def auth_test(self, request: Request, current_user: Paciente):
         return make_response(current_user.to_response(), 200)
