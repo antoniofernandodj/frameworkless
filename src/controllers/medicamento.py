@@ -47,9 +47,6 @@ class MedicamentoController:
     @post("/")
     async def create_medicamento(self, request: Request):
         body = await request.get_body(MedicamentoFieldsValidator)
-        # body.inicio_tratamento = date.fromisoformat(body.pop('inicio_tratamento'))
-        # if body.get('fim_tratamento'):
-        #     body.fim_tratamento = date.fromisoformat(body.pop('fim_tratamento'))
         m = Medicamento(**body)
         medicamento: Medicamento = self.medicamento_repository.create(m)
         return make_response(medicamento, 201)
@@ -58,9 +55,6 @@ class MedicamentoController:
     async def update_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
         body = await request.get_body(MedicamentoFieldsValidator)
-        # body.inicio_tratamento = date.fromisoformat(body.pop('inicio_tratamento'))
-        # if body.get('fim_tratamento'):
-        #     body.fim_tratamento = date.fromisoformat(body.pop('fim_tratamento'))
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
             raise NotFoundError("medicamento not found")
