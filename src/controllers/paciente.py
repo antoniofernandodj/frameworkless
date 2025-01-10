@@ -1,13 +1,13 @@
-from src.exceptions.http import NotFoundError, UnprocessableEntityError
+from typing import Annotated, TypeVar
+
+from src.exceptions.http import NotFoundError
 from src.models import Request
-from typing import Annotated, Any, Dict, Generic, Optional, TypeVar
-from src.domain.models import Paciente
-from src.repository import PacienteRepository, GenericRepository
+from src.repository import PacienteRepository
 from src.utils import (
     ParamsValidator,
     make_response,
     validate_params,
-    get, post, put, delete
+    get, put, delete
 )
 
 
@@ -59,29 +59,3 @@ class PacienteController:
         if not success:
             raise NotFoundError('Paciente não encontrado')
         return make_response(204)
-
-
-
-
-"""
-
-class Paciente(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        nome: str,
-        data_nascimento: date,
-        sexo: str,
-        contato: Optional[str] = None,
-        endereco: Optional[str] = None,
-        responsavel: Optional[str] = None
-    ):
-        self.id = id
-        self.nome = nome
-        self.data_nascimento = data_nascimento
-        self.sexo = sexo
-        self.contato = contato
-        self.endereco = endereco
-        self.responsavel = responsavel
-
-"""

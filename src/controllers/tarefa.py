@@ -1,13 +1,14 @@
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Optional
+
 from src.domain.models import Tarefa
 from src.repository import TarefaRepository
-from src.exceptions.http import NotFoundError, UnprocessableEntityError
+from src.exceptions.http import NotFoundError
 from src.utils import (
     ParamsValidator,
     make_response,
     validate_params,
-    get, post, put, patch, delete
+    get, post, put, delete
 )
 
 
@@ -62,24 +63,3 @@ class TarefaController:
         if not success:
             raise NotFoundError("Tarea not found")
         return make_response(204)
-
-
-"""
-
-
-class Tarefa(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        descricao: str,
-        data_limite: Optional[date] = None,
-        status: Optional[str] = None,
-        paciente_id: Optional[int] = None
-    ):
-        self.id = id
-        self.descricao = descricao
-        self.data_limite = data_limite
-        self.status = status
-        self.paciente_id = paciente_id
-
-"""

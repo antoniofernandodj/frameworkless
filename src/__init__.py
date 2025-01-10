@@ -177,10 +177,10 @@ class App(BaseApp):
         init_mappers()
 
         self.routers = (
-            # ConsultaRouter(session),
+            ConsultaRouter(session),
             DoencaRouter(session),
             ExameRouter(session),
-            # MedicamentoRouter(session),
+            MedicamentoRouter(session),
             # TarefaRouter(session),
             # PacienteRouter(session),
             TesteRouter(),
@@ -194,7 +194,7 @@ class App(BaseApp):
             scope.query_string,
             scope.path,
             scope.method,
-            get_body,
+            get_body,  # type: ignore
             dict(scope.headers.items())
         )
 
@@ -216,7 +216,7 @@ class App(BaseApp):
             scope['query_string'].decode('utf-8'),
             scope['path'],
             scope['method'],
-            get_body,   {
+            get_body,   {  # type: ignore
                 key.decode('utf-8'): item.decode('utf-8')
                 for key, item in dict(scope['headers']).items()
             }

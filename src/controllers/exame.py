@@ -1,7 +1,8 @@
+from typing import Annotated, Optional
 from datetime import date
-from src.exceptions.http import NotFoundError, UnprocessableEntityError
+
+from src.exceptions.http import NotFoundError
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Exame
 from src.repository import ExameRepository
 from src.utils import (
@@ -43,7 +44,7 @@ class ExameController:
     @post("/")
     async def create_exame(self, request: Request):
         body = await request.get_body(ExameFieldsValidator)
-        body['data'] = date.fromisoformat(body.pop('data'))
+        body.data = date.fromisoformat(body.pop('data'))
         exame = Exame(**body)
         exame: Exame = self.exame_repository.create(exame)
         return make_response(exame, 201)
@@ -52,12 +53,10 @@ class ExameController:
     async def marcar_exame(self, request: Request, id: str):
         exame_id = int(id)
         body = await request.get_body()
-        if body and body.get('marcar'):
-            exame = self.exame_repository.update(exame_id, {
-                'marcado': body['marcar']
-            })
-        else:
-            exame = self.exame_repository.update(exame_id, {'marcado': True})
+        marcado = (getattr(body, 'marcar', None) or True) if body else True
+        exame = self.exame_repository.update(exame_id, {
+            'marcado': marcado
+        })
         if exame is None:
             raise NotFoundError('Exame not found')
         return make_response(exame)
@@ -78,27 +77,3 @@ class ExameController:
         if not success:
             raise NotFoundError("Exame not found")
         return make_response(204)
-    
-
-"""
-class Exame(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        tipo: str,
-        data: date,
-        marcado: bool,
-        resultado: Optional[str] = None,
-        laboratorio: Optional[str] = None,
-        consulta_id: Optional[int] = None,
-        paciente_id: Optional[int] = None
-    ):
-        self.id = id
-        self.tipo = tipo
-        self.data = data
-        self.marcado = marcado
-        self.resultado = resultado
-        self.laboratorio = laboratorio
-        self.consulta_id = consulta_id
-        self.paciente_id = paciente_id
-    """

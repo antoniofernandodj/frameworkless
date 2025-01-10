@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 import json
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, TypeVar, get_origin
 from asyncio import iscoroutinefunction
 from contextlib import suppress
 from copy import deepcopy
@@ -101,21 +102,59 @@ class ParamsValidator:
         
         return metadata
 
+    # @classmethod
+    # def validate(cls, params: T) -> T:
+    #     params_after = deepcopy(params)
+    #     validators = cls.get_field_metadata()
+
+    #     for field_name, type_data in validators.items():
+    #         param_type = type_data['type']
+    #         error_msg = type_data['msg']
+    #         try:
+    #             params_after[field_name] = param_type(params[field_name])  # type: ignore
+    #         except Exception:
+    #             del params_after
+    #             raise UnprocessableEntityError(error_msg)
+
+    #     return params_after
     @classmethod
-    def validate(cls, params: T) -> T:
+    def validate(cls, params: Dict[str, Any]) -> Dict[str, Any]:
         params_after = deepcopy(params)
         validators = cls.get_field_metadata()
 
         for field_name, type_data in validators.items():
             param_type = type_data['type']
             error_msg = type_data['msg']
+            param_value = params.get(field_name)
+
             try:
-                params_after[field_name] = param_type(params[field_name])  # type: ignore
-            except Exception:
+                if get_origin(param_type) is Optional:
+                    inner_type = get_args(param_type)[0]
+                    params_after[field_name] = (
+                        cls._convert_type(param_value, inner_type) if param_value is not None else None
+                    )
+                else:
+                    # Lida com tipos regulares
+                    params_after[field_name] = cls._convert_type(param_value, param_type)
+            except Exception as e:
                 del params_after
-                raise UnprocessableEntityError(error_msg)
+                raise UnprocessableEntityError(error_msg) from e
 
         return params_after
+
+    @staticmethod
+    def _convert_type(value: Any, target_type: Any) -> Any:
+        """Converte o valor para o tipo especificado."""
+
+        with open('teste', 'w') as f:
+            f.write(f'{value} {target_type}')
+
+        if target_type is date:
+            return date.fromisoformat(value)
+        elif target_type is datetime:
+            return datetime.fromisoformat(value)
+        else:
+            return target_type(value)
 
 
 def get_protocol_args(args):

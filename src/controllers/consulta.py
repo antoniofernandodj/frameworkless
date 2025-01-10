@@ -1,8 +1,9 @@
+from datetime import datetime
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Optional
 from src.domain.models import Consulta
 from src.repository import ConsultaRepository
-from src.exceptions.http import InternalServerError, NotFoundError, UnprocessableEntityError
+from src.exceptions.http import NotFoundError
 from src.utils import (
     ParamsValidator,
     make_response,
@@ -12,13 +13,14 @@ from src.utils import (
 
 
 class ConsultaFieldsValidator(ParamsValidator):
-    data: Annotated[str, "Invalid consulta payload"]
-    medico: Annotated[str, "Invalid consulta payload"]
-    especialidade: Annotated[str, "Invalid consulta payload"]
-    local: Annotated[str, "Invalid consulta payload"]
-    observacoes: Annotated[str, "Invalid consulta payload"]
-    paciente_id: Annotated[str, "Invalid consulta payload"]
-    doenca_id: Annotated[str, "Invalid consulta payload"]
+    horario: Annotated[str, "`horario` required"]
+    motivo: Annotated[str, "`motivo` required"]
+    medico: Annotated[str, "`medico` required"]
+    especialidade: Annotated[str, "`especialidade` required"]
+    local: Annotated[str, "`local` required"]
+    observacoes: Annotated[str, "`observacoes` required"]
+    paciente_id: Annotated[str, "`paciente_id` required"]
+    doenca_id: Annotated[str, "`doenca_id` required"]
 
 
 class IdValidator(ParamsValidator):
@@ -44,21 +46,24 @@ class ConsultaController:
     @post("/")    
     async def create_consulta(self, request: Request):
         body = await request.get_body(ConsultaFieldsValidator)
+        body.horario = datetime.fromisoformat(body.pop('horario'))
         consulta = Consulta(**body)  # type: ignore
         consulta: Consulta = self.consulta_repository.create(consulta)
         return make_response(consulta, 201)
     
     @patch("/<id:int>/marcar")
-    @validate_params(IdValidator)
     async def marcar_consulta(self, request: Request, id: int):
         consulta_id = int(id)
-        consulta = self.consulta_repository.update(consulta_id, {'marcado': True})
+        body = request.get_body()
+        marcado = (getattr(body, 'marcar', None) or True) if body else True
+        consulta = self.consulta_repository.update(consulta_id, {
+            'marcado': marcado
+        })
         if consulta is None:
             raise NotFoundError('Consulta not found')
         return make_response(consulta)
 
     @put("/<id:int>")
-    @validate_params(IdValidator)
     async def update_consulta(self, request: Request, id: int):
         consulta_id = int(id)
         body = await request.get_body(ConsultaFieldsValidator)
@@ -68,35 +73,9 @@ class ConsultaController:
         return make_response(consulta)
 
     @delete("/<id:int>")
-    @validate_params(IdValidator)
     async def delete_consulta(self, request: Request, id: int):
         consulta_id = int(id)
         success: bool = self.consulta_repository.delete(consulta_id)
         if not success:
             raise NotFoundError("Consulta not found")
         return make_response(204)
-
-
-"""
-class Consulta(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        data: date,
-        medico: str,
-        especialidade: Optional[str] = None,
-        local: Optional[str] = None,
-        observacoes: Optional[str] = None,
-        paciente_id: Optional[int] = None,
-        doenca_id: Optional[int] = None
-    ):
-        self.id = id
-        self.data = data
-        self.medico = medico
-        self.especialidade = especialidade
-        self.local = local
-        self.observacoes = observacoes
-        self.paciente_id = paciente_id
-        self.doenca_id = doenca_id
-
-"""

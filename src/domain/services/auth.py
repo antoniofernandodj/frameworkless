@@ -18,8 +18,11 @@ class AuthService:
 
     def login(self, login: str, password: str) -> Dict[str, Any]:
         paciente = self.repo.get_by(login=login)
-        if paciente is None or not HashService.check_hash(password, paciente.password):
+        if paciente is None:
             raise NotFoundError('Credenciais inválidas!')
+
+        if not HashService.check_hash(password, paciente.password):
+            raise UnauthorizedError('Credenciais inválidas!')
 
         token = JWTService.generate({'user_id': paciente.id})
         response = paciente.to_response()
@@ -75,7 +78,7 @@ class AuthService:
 
         paciente = self.repo.get_by_id(user_id=user_id)
         if paciente is None:
-            raise NotFoundError('Credenciais inválidas!')
+            raise UnauthorizedError('Credenciais inválidas!')
         
         return paciente
 

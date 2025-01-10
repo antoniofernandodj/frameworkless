@@ -1,6 +1,8 @@
-from src.exceptions.http import NotFoundError, UnprocessableEntityError
+from typing import Annotated, Optional
+from datetime import date
+
+from src.exceptions.http import NotFoundError
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Medicamento
 from src.repository import MedicamentoRepository
 from src.utils import (
@@ -12,14 +14,14 @@ from src.utils import (
 
 
 class MedicamentoFieldsValidator(ParamsValidator):
-    nome: Annotated[str, "Invalid medicamento payload"]
-    dosagem: Annotated[str, "Invalid medicamento payload"]
-    frequencia: Annotated[str, "Invalid medicamento payload"]
-    via: Annotated[str, "Invalid medicamento payload"]
-    inicio_tratamento: Annotated[str, "Invalid medicamento payload"]
-    fim_tratamento: Annotated[str, "Invalid medicamento payload"]
-    paciente_id: Annotated[int, "Invalid medicamento payload"]
-    doenca_id: Annotated[int, "Invalid medicamento payload"]
+    nome: Annotated[str, "`nome` required"]
+    dosagem: Annotated[str, "`dosagem` required"]
+    frequencia: Annotated[str, "`` required"]
+    # via: Annotated[str, "`` required"]
+    inicio_tratamento: Annotated[date, "`inicio_tratamento` must be a valid ISO date"]
+    # fim_tratamento: Annotated[Optional[date], "`fim_tratamento` must be a valid ISO date"]
+    paciente_id: Annotated[int, "`paciente_id` required"]
+    # doenca_id: Annotated[int, "`doenca_id` required"]
 
 
 class IdValidator(ParamsValidator):
@@ -45,53 +47,29 @@ class MedicamentoController:
     @post("/")
     async def create_medicamento(self, request: Request):
         body = await request.get_body(MedicamentoFieldsValidator)
-        medicamento: Medicamento = self.medicamento_repository.create(body['name'])
+        # body.inicio_tratamento = date.fromisoformat(body.pop('inicio_tratamento'))
+        # if body.get('fim_tratamento'):
+        #     body.fim_tratamento = date.fromisoformat(body.pop('fim_tratamento'))
+        m = Medicamento(**body)
+        medicamento: Medicamento = self.medicamento_repository.create(m)
         return make_response(medicamento, 201)
 
     @put("/<id:int>")
-    @validate_params(IdValidator)
     async def update_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
         body = await request.get_body(MedicamentoFieldsValidator)
+        # body.inicio_tratamento = date.fromisoformat(body.pop('inicio_tratamento'))
+        # if body.get('fim_tratamento'):
+        #     body.fim_tratamento = date.fromisoformat(body.pop('fim_tratamento'))
         medicamento: Optional[Medicamento] = self.medicamento_repository.update(medicamento_id, body)
         if not medicamento:
             raise NotFoundError("medicamento not found")
         return make_response(medicamento)
 
     @delete("/<id:int>")
-    @validate_params(IdValidator)
     async def delete_medicamento(self, request: Request, id: str):
         medicamento_id = int(id)
         success: bool = self.medicamento_repository.delete(medicamento_id)
         if not success:
             raise NotFoundError("medicamento not found")
         return make_response(204)
-
-
-"""
-class Medicamento(DomainModel):
-
-    def __init__(
-        self,
-        id: int,
-        nome: str,
-        dosagem: str,
-        frequencia: str,
-        via: Optional[str] = None,
-        inicio_tratamento: Optional[date] = None,
-        fim_tratamento: Optional[date] = None,
-        paciente_id: Optional[int] = None,
-        doenca_id: Optional[int] = None
-    ):
-        self.id = id
-        self.nome = nome
-        self.dosagem = dosagem
-        self.frequencia = frequencia
-        self.via = via
-        self.inicio_tratamento = inicio_tratamento
-        self.fim_tratamento = fim_tratamento
-        self.paciente_id = paciente_id
-        self.doenca_id = doenca_id
-
-
-"""

@@ -1,14 +1,9 @@
-from datetime import date
-from src.exceptions.http import UnprocessableEntityError
+from datetime import datetime
 from src.models import Request
-from typing import Annotated, Any, Dict, Optional
 from src.domain.models import Consulta
-from src.domain.services.consulta import ConsultaService
 from src.utils import (
-    ParamsValidator,
     make_response,
-    validate_params,
-    get, post, put, patch, delete
+    get, post,
 )
 
 
@@ -18,7 +13,7 @@ class TesteController:
 
     @get("/")
     async def teste_endpoint_1(self, request: Request):
-        consulta = Consulta(date(1,2,3), True, 'medico')
+        consulta = Consulta(datetime(1,2,3, 0, 0, 0), 'motivo', 'medico')
         return make_response(consulta)
 
     @get("/<id:int>/")

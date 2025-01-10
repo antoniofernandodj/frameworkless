@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 import json
 from secrets import token_urlsafe
 import unittest
@@ -13,6 +13,7 @@ from src.domain.models import (
     Medicamento
 )
 
+from src.exceptions.http import NotFoundError, UnauthorizedError
 from tests.mock import TestClient
 from src import App
 
@@ -162,6 +163,24 @@ class Test_2_Auth(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(body['nome'], 'teste')
 
+    async def test_4_invalid_login(self):
+        with self.assertRaises(NotFoundError):
+            await self.client.post(
+                path='/auth/login/',
+                headers={'content-type': 'application/json'},
+                body=dict(login='invalid', password='password'),
+                query_string=''
+            )
+
+    async def test_5_invalid_password(self):
+        with self.assertRaises(UnauthorizedError):
+            await self.client.post(
+                path='/auth/login/',
+                headers={'content-type': 'application/json'},
+                body=dict(login='teste', password='wrong'),
+                query_string=''
+            )
+
 
 class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
 
@@ -285,74 +304,62 @@ class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
         body['_id'] = body.pop('id')
         exame = Exame(**body)
         self.assertEquals(response.status, 200)
-        self.assertEquals(exame.marcado, True)
+        self.assertTrue(exame.marcado)
 
         self.data['exame'] = Exame(**body)
 
-    # TODO
-    # async def test_6_arquivar_resultado_de_exame(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
+    async def test_7_criar_consultas(self):
+        p = get_paciente()
+        consulta = Consulta(
+            horario=datetime.now(),
+            medico="Dr. Silva",
+            paciente_id=p.id,
+            motivo="Consulta de rotina",
+        )
 
-    #         ),
-    #         query_string=''
-    #     )
+        response = await self.client.post(
+            path='/consultas/',
+            headers=await self.auth_headers(),
+            body=consulta.to_dict(),
+            query_string=''
+        )
 
-    #     body = json.loads(response.body)
+        body = json.loads(response.body)
+        self.assertEqual(response.status, 201)
 
-    # TODO
-    # async def test_7_criar_consultas(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
+        body['_id'] = body.pop('id')
+        self.data['consulta'] = Consulta(**body)
 
-    #         ),
-    #         query_string=''
-    #     )
+    async def test_8_marcar_consulta(self):
+        consulta = self.data['consulta']
 
-    #     body = json.loads(response.body)
+        response = await self.client.patch(
+            path=f'/consultas/{consulta.id}/marcar',
+            headers=await self.auth_headers(),
+            body=None,
+            query_string=''
+        )
 
-    # TODO
-    # async def test_8_marcar_consulta(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
+        body = json.loads(response.body)
+        body['_id'] = body.pop('id')
+        consulta = Consulta(**body)
+        self.assertEqual(response.status, 200)
+        self.assertTrue(consulta.marcado)
 
-    #         ),
-    #         query_string=''
-    #     )
-
-    #     body = json.loads(response.body)
-
-    # TODO
-    # async def test_9_arquivar_resultado_de_consulta(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
-
-    #         ),
-    #         query_string=''
-    #     )
-
-    #     body = json.loads(response.body)
+        self.data['consulta'] = consulta
 
     # TODO
     # async def test_10_criar_tarefas(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
+        # response = await self.client.post(
+        #     path='',
+        #     headers=await self.auth_headers(),
+        #     body=dict(
 
-    #         ),
-    #         query_string=''
-    #     )
+        #     ),
+        #     query_string=''
+        # )
 
-    #     body = json.loads(response.body)
+        # body = json.loads(response.body)
 
     # TODO
     # async def test_11_atualizar_tarefas(self):
@@ -380,41 +387,57 @@ class Test_3_Fluxo(unittest.IsolatedAsyncioTestCase):
 
     #     body = json.loads(response.body)
 
+    # FIXME: fim_tratamento não funcionando na validação
+    async def test_13_registrar_medicamentos(self):
+        # breakpoint()
+        medicamento = Medicamento(
+            nome="Paracetamol",
+            dosagem="500mg",
+            frequencia="8 em 8 horas",
+            inicio_tratamento=date.today(),
+            # fim_tratamento=date.today() + timedelta(days=7),
+            paciente_id=get_paciente().id
+        )
+
+        response = await self.client.post(
+            path='/medicamentos/',
+            headers=await self.auth_headers(),
+            body=medicamento.to_dict(),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
+        self.assertEqual(response.status, 201)
+
+        body['_id'] = body.pop('id')
+        self.data['medicamento'] = Medicamento(**body)
+
+    async def test_14_atualizar_medicamento(self):
+        self.data['medicamento'].frequencia = "12 em 12 horas"
+
+        response = await self.client.put(
+            path=f'/medicamentos/{self.data["medicamento"].id}',
+            headers=await self.auth_headers(),
+            body=self.data['medicamento'].to_dict(),
+            query_string=''
+        )
+
+        body = json.loads(response.body)
+        body['_id'] = body.pop('id')
+        medicamento = Medicamento(**body)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(medicamento.frequencia, self.data['medicamento'].frequencia)
+
+
     # TODO
-    # async def test_13_registrar_medicamentos(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
+    async def test_15_remover_medicamento(self):
+        response = await self.client.delete(
+            path=f'/medicamentos/{self.data["medicamento"].id}',
+            headers=await self.auth_headers(),
+            body=None,
+            query_string=''
+        )
 
-    #         ),
-    #         query_string=''
-    #     )
-
-    #     body = json.loads(response.body)
-
-    # TODO
-    # async def test_14_atualizar_medicamento(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
-
-    #         ),
-    #         query_string=''
-    #     )
-
-    #     body = json.loads(response.body)
-
-    # TODO
-    # async def test_15_remover_medicamento(self):
-    #     response = await self.client.post(
-    #         path='',
-    #         headers=await self.auth_headers(),
-    #         body=dict(
-
-    #         ),
-    #         query_string=''
-    #     )
-
-    #     body = json.loads(response.body)
+        self.assertEqual(response.status, 204)
+        self.data.pop('medicamento')

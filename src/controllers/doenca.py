@@ -1,4 +1,4 @@
-from src.exceptions.http import NotFoundError, UnprocessableEntityError
+from src.exceptions.http import NotFoundError
 from src.models import Request
 from typing import Annotated, Optional
 from src.domain.models import Doenca
@@ -61,25 +61,3 @@ class DoencaController:
         if not success:
             raise NotFoundError('Doença not found')
         return make_response(204)
-
-
-"""
-
-class Doenca(DomainModel):
-    def __init__(
-        self,
-        id: int,
-        nome: str,
-        descricao: Optional[str] = None,
-        codigo_cid: Optional[str] = None,
-        paciente_id: Optional[int] = None
-    ):
-        self.id = id
-        self.nome = nome
-        self.descricao = descricao
-        self.codigo_cid = codigo_cid
-        self.paciente_id = paciente_id
-
-
-
-"""

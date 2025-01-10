@@ -1,17 +1,11 @@
-from datetime import date
+from typing import Annotated, TypeVar
 from src.domain.services.auth import AuthService, auth_required
-from src.exceptions.http import ConflictError, NotFoundError, UnauthorizedError, UnprocessableEntityError
-from src.jwt import JWTService
 from src.models import Request
-from typing import Annotated, Any, Dict, Generic, Optional, TypeVar
 from src.domain.models import Paciente
-from src.repository import PacienteRepository, GenericRepository
-from src.security import HashService
 from src.utils import (
     ParamsValidator,
     make_response,
-    validate_params,
-    get, post, put, delete
+    post
 )
 
 
